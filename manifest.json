@@ -1,0 +1,15 @@
+{
+  "name": "baby-care-miniapp",
+  "appid": "wxae6276a796a7cbdf",
+  "description": "宝宝护理记录与提醒系统小程序端",
+  "versionName": "0.0.1",
+  "versionCode": "1",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "wxae6276a796a7cbdf",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "pages": [
+    {
+      "path": "pages/splash/index",
+      "style": {
+        "navigationBarTitleText": "宝宝护理",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录确认"
+      }
+    },
+    {
+      "path": "pages/today/index",
+      "style": {
+        "navigationBarTitleText": "今日"
+      }
+    },
+    {
+      "path": "pages/record/index",
+      "style": {
+        "navigationBarTitleText": "记录"
+      }
+    },
+    {
+      "path": "pages/reminder/index",
+      "style": {
+        "navigationBarTitleText": "提醒"
+      }
+    },
+    {
+      "path": "pages/baby/index",
+      "style": {
+        "navigationBarTitleText": "宝宝"
+      }
+    },
+    {
+      "path": "pages/baby/create",
+      "style": {
+        "navigationBarTitleText": "创建宝宝"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "宝宝护理",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f7f8fa"
+  },
+  "tabBar": {
+    "color": "#8a94a6",
+    "selectedColor": "#1f7a6d",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/today/index",
+        "text": "今日"
+      },
+      {
+        "pagePath": "pages/record/index",
+        "text": "记录"
+      },
+      {
+        "pagePath": "pages/reminder/index",
+        "text": "提醒"
+      },
+      {
+        "pagePath": "pages/baby/index",
+        "text": "宝宝"
+      }
+    ]
+  }
+}
