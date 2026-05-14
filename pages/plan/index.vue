@@ -1,8 +1,8 @@
 <template>
   <view class="plan-page">
     <view class="plan-header">
-      <view class="page-title">计划管理</view>
-      <view class="stage-pill">计划模板</view>
+      <view class="page-title">照护计划</view>
+      <view class="stage-pill">个人提醒模板</view>
       <view class="page-desc">选择模板后，可为当前宝宝创建提醒节点。</view>
     </view>
 
@@ -99,8 +99,9 @@ export default {
 <style scoped>
 .plan-page {
   min-height: 100vh;
+  box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #f6f6f3;
+  background: #fff8ee;
 }
 
 .plan-header {
@@ -108,7 +109,7 @@ export default {
 }
 
 .page-title {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 40rpx;
   font-weight: 700;
 }
@@ -118,14 +119,14 @@ export default {
   margin-top: 18rpx;
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: #eef0ec;
-  color: #687268;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 23rpx;
 }
 
 .page-desc {
   margin-top: 14rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -136,16 +137,16 @@ export default {
   justify-content: space-between;
   margin-bottom: 20rpx;
   padding: 28rpx 24rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 26rpx rgba(96, 96, 80, 0.06);
+  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
 
 .state-card {
   padding: 28rpx 24rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 26rpx;
 }
 
@@ -154,14 +155,14 @@ export default {
 }
 
 .plan-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 30rpx;
   font-weight: 700;
 }
 
 .plan-desc {
   margin-top: 10rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 24rpx;
 }
 
@@ -176,15 +177,15 @@ export default {
   margin-left: 18rpx;
   padding: 12rpx 24rpx;
   border-radius: 999rpx;
-  background: #ffd65b;
-  color: #80620f;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 24rpx;
   font-weight: 600;
 }
 
 .muted-action {
-  background: #eef0ec;
-  color: #7b8794;
+  background: #fffaf2;
+  color: #a8a8a8;
 }
 
 .footer-actions {
@@ -196,19 +197,23 @@ export default {
 
 .primary-action,
 .soft-action {
+  box-sizing: border-box;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
   height: 86rpx;
-  border-radius: 12rpx;
+  border-radius: 999rpx;
   font-size: 27rpx;
   line-height: 86rpx;
 }
 
 .primary-action {
-  background: #ffd65b;
-  color: #5f4700;
+  background: #f6b84b;
+  color: #ffffff;
 }
 
 .soft-action {
   background: #ffffff;
-  color: #64748b;
+  color: #7a7a7a;
 }
 </style>

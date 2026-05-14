@@ -4,20 +4,27 @@ export const ENV = 'dev'
 const CONFIG = {
   dev: {
     baseUrl: 'http://localhost:8080',
-    miniappDevLoginEnabled: true
+    miniappDevLoginEnabled: true,
+    mockVoiceEnabled: true
   },
   test: {
     baseUrl: 'https://springboot-vj9l-240203-4-1384307923.sh.run.tcloudbase.com',
-    miniappDevLoginEnabled: true
+    miniappDevLoginEnabled: true,
+    mockVoiceEnabled: true
   },
   prod: {
     baseUrl: 'https://springboot-vj9l-240203-4-1384307923.sh.run.tcloudbase.com',
-    miniappDevLoginEnabled: false
+    miniappDevLoginEnabled: false,
+    mockVoiceEnabled: false
   }
 }
 
 export function isMiniAppDevLoginEnabled() {
   return CONFIG[ENV].miniappDevLoginEnabled === true && ENV !== 'prod'
+}
+
+export function isMockVoiceEnabled() {
+  return CONFIG[ENV].mockVoiceEnabled === true && ENV !== 'prod'
 }
 
 export default CONFIG[ENV]

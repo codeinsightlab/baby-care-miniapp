@@ -35,10 +35,10 @@
     <view class="voice-card" @click="goVoice">
       <view class="voice-mark">声</view>
       <view class="voice-copy">
-        <view class="voice-title">语音记录</view>
-        <view class="voice-desc">待接入录音和识别能力。</view>
+        <view class="voice-title">语音备注</view>
+        <view class="voice-desc">{{ voiceEntryDesc }}</view>
       </view>
-      <view class="voice-action">去看看</view>
+      <view class="voice-action">去输入</view>
     </view>
 
     <view class="section-card">
@@ -51,6 +51,14 @@
         <view>
           <view class="empty-title">正在加载记录</view>
           <view class="empty-desc">请稍候。</view>
+        </view>
+      </view>
+      <view v-else-if="loadError" class="timeline-empty">
+        <view class="empty-dot"></view>
+        <view>
+          <view class="empty-title">记录加载失败</view>
+          <view class="empty-desc">{{ loadErrorText }}</view>
+          <button class="soft-action retry-action" @click="loadRecords">重新加载</button>
         </view>
       </view>
       <view v-else-if="records.length === 0" class="timeline-empty">
@@ -89,6 +97,7 @@
 </template>
 
 <script>
+import { isMockVoiceEnabled } from '../../config/env'
 import {
   CARE_RECORD_TYPES,
   createQuickCareRecord,
@@ -97,6 +106,7 @@ import {
   getTodayDateString
 } from '../../services/careRecordService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
+import { getErrorMessage } from '../../utils/errorClassifier'
 
 export default {
   name: 'RecordPage',
@@ -105,10 +115,18 @@ export default {
       currentBabyId: '',
       records: [],
       loading: false,
+      loadError: false,
+      loadErrorText: '',
       submitting: false,
+      mockVoiceEnabled: isMockVoiceEnabled(),
       quickTypes: [
         ...CARE_RECORD_TYPES
       ]
+    }
+  },
+  computed: {
+    voiceEntryDesc() {
+      return this.mockVoiceEnabled ? '说一句照护备注，确认后保存到记录。' : '语音输入暂未开放，可先手动记录。'
     }
   },
   onShow() {
@@ -125,6 +143,7 @@ export default {
   methods: {
     async loadRecords() {
       this.loading = true
+      this.loadError = false
       try {
         this.records = await fetchCareRecordList({
           babyId: this.currentBabyId,
@@ -132,6 +151,8 @@ export default {
         })
       } catch (error) {
         this.records = []
+        this.loadErrorText = getErrorMessage(error)
+        this.loadError = true
       } finally {
         this.loading = false
       }
@@ -161,6 +182,13 @@ export default {
       return getRecordListTypeCountText(this.records, recordType)
     },
     goVoice() {
+      if (!this.mockVoiceEnabled) {
+        uni.showToast({
+          title: '语音输入暂未开放',
+          icon: 'none'
+        })
+        return
+      }
       uni.navigateTo({
         url: '/pages/record/voice'
       })
@@ -172,8 +200,9 @@ export default {
 <style scoped>
 .record-page {
   min-height: 100vh;
+  box-sizing: border-box;
   padding: 34rpx 28rpx 180rpx;
-  background: #fff7dc;
+  background: #fff8ee;
 }
 
 .record-hero {
@@ -184,21 +213,21 @@ export default {
   display: inline-flex;
   padding: 8rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.72);
-  color: #7a6a45;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 22rpx;
 }
 
 .record-title {
   margin-top: 18rpx;
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .record-desc {
   margin-top: 8rpx;
-  color: #7a6a45;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -208,13 +237,13 @@ export default {
 .voice-card {
   margin-bottom: 20rpx;
   padding: 26rpx 24rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
 
 .section-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 30rpx;
   font-weight: 700;
 }
@@ -230,8 +259,8 @@ export default {
 .summary-item {
   min-height: 132rpx;
   padding: 18rpx 10rpx;
-  border-radius: 14rpx;
-  background: #fafafa;
+  border-radius: 18rpx;
+  background: #fffaf2;
   text-align: center;
 }
 
@@ -268,14 +297,14 @@ export default {
 }
 
 .summary-label {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 25rpx;
   font-weight: 700;
 }
 
 .summary-value {
   margin-top: 8rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 22rpx;
 }
 
@@ -306,7 +335,7 @@ export default {
 
 .voice-title,
 .empty-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -314,7 +343,7 @@ export default {
 .voice-desc,
 .empty-desc,
 .section-more {
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -336,8 +365,8 @@ export default {
   align-items: flex-start;
   margin-top: 24rpx;
   padding: 24rpx;
-  border-radius: 14rpx;
-  background: #fafafa;
+  border-radius: 18rpx;
+  background: #fffaf2;
 }
 
 .record-list {
@@ -347,7 +376,7 @@ export default {
 .record-row {
   display: flex;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #f0f2f4;
+  border-bottom: 1rpx solid #f0e6d6;
 }
 
 .record-row:last-child {
@@ -357,7 +386,7 @@ export default {
 .record-time {
   flex-shrink: 0;
   width: 92rpx;
-  color: #8a94a6;
+  color: #a8a8a8;
   font-size: 23rpx;
 }
 
@@ -367,14 +396,14 @@ export default {
 }
 
 .record-name {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 26rpx;
   font-weight: 700;
 }
 
 .record-remark {
   margin-top: 6rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 23rpx;
   line-height: 1.5;
 }
@@ -385,19 +414,26 @@ export default {
   height: 18rpx;
   margin: 10rpx 18rpx 0 0;
   border-radius: 50%;
-  background: #f2c433;
+  background: #f6b84b;
 }
 
 .quick-item {
   padding: 24rpx 12rpx;
-  border-radius: 14rpx;
-  background: #fafafa;
-  color: #4b5563;
+  border-radius: 18rpx;
+  background: #fffaf2;
+  color: #2f2f2f;
   font-size: 25rpx;
   text-align: center;
 }
 
 .quick-item.disabled {
   opacity: 0.58;
+}
+
+.retry-action {
+  margin-top: 16rpx;
+  color: #d58b4d;
+  background: #fff3ce;
+  border-radius: 999rpx;
 }
 </style>

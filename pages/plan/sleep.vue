@@ -93,19 +93,20 @@ export default {
 <style scoped>
 .plan-detail-page {
   min-height: 100vh;
+  box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #f6f6f3;
+  background: #fff8ee;
 }
 
 .page-title {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin: 12rpx 0 28rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -113,13 +114,14 @@ export default {
 .section-card {
   margin-bottom: 18rpx;
   padding: 26rpx 24rpx;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   background: #ffffff;
+  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
 
 .section-title {
   margin-bottom: 18rpx;
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 29rpx;
   font-weight: 700;
 }
@@ -127,16 +129,16 @@ export default {
 .option-item {
   margin-bottom: 12rpx;
   padding: 22rpx 24rpx;
-  border: 1rpx solid #e7ece8;
-  border-radius: 10rpx;
-  color: #4b5563;
+  border: 1rpx solid #f0e6d6;
+  border-radius: 18rpx;
+  color: #2f2f2f;
   font-size: 26rpx;
 }
 
 .option-item.active {
-  border-color: #ffe28a;
-  background: #fff6d8;
-  color: #8a6500;
+  border-color: #ffd166;
+  background: #f2e7ff;
+  color: #8d6bd1;
 }
 
 .node-row {
@@ -144,14 +146,14 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #edf1f3;
-  color: #344054;
+  border-bottom: 1rpx solid #f0e6d6;
+  color: #2f2f2f;
   font-size: 25rpx;
 }
 
 .node-desc {
   margin-top: 6rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 22rpx;
   line-height: 1.4;
 }
@@ -159,17 +161,17 @@ export default {
 .node-status {
   padding: 6rpx 14rpx;
   border-radius: 999rpx;
-  background: #eef0ec;
-  color: #7b8794;
+  background: #f2e7ff;
+  color: #8d6bd1;
   font-size: 22rpx;
 }
 
 .add-node {
   margin-top: 18rpx;
   padding: 20rpx;
-  border: 1rpx dashed #d8dee3;
-  border-radius: 10rpx;
-  color: #7b8794;
+  border: 1rpx dashed #f0e6d6;
+  border-radius: 18rpx;
+  color: #7a7a7a;
   font-size: 24rpx;
   text-align: center;
 }
@@ -183,19 +185,23 @@ export default {
 
 .primary-action,
 .soft-action {
+  box-sizing: border-box;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
   height: 84rpx;
-  border-radius: 12rpx;
+  border-radius: 999rpx;
   font-size: 27rpx;
   line-height: 84rpx;
 }
 
 .primary-action {
-  background: #ffd65b;
-  color: #5f4700;
+  background: #f6b84b;
+  color: #ffffff;
 }
 
 .soft-action {
   background: #ffffff;
-  color: #64748b;
+  color: #7a7a7a;
 }
 </style>

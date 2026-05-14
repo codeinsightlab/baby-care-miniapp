@@ -1,5 +1,6 @@
-import config from '../config/env'
-import { clearAuth, getToken } from './auth'
+import config, { isMiniAppDevLoginEnabled } from '../config/env'
+import { clearLoginState, getToken, saveLoginResult } from './auth'
+import { getErrorMessage, isServerUnavailableError } from './errorClassifier'
 
 function redirectToLogin(reason = '登录状态已失效，请重新进入') {
   const pages = getCurrentPages()
@@ -24,17 +25,103 @@ function buildUnauthorizedError(response) {
   }
 }
 
-function handleUnauthorized(options, error) {
-  clearAuth()
+function buildHttpError(response) {
+  const data = response && response.data
+  return {
+    statusCode: response && response.statusCode,
+    code: data && data.code ? data.code : response && response.statusCode,
+    msg: data && data.msg ? data.msg : '请求失败',
+    response
+  }
+}
+
+function buildNetworkError(error) {
+  return {
+    ...(error || {}),
+    networkError: true,
+    msg: '网络异常'
+  }
+}
+
+function redirectIfNeeded(options, error) {
   if (options.redirectOnUnauthorized !== false) {
     redirectToLogin(error.msg)
   }
+}
+
+function requestLoginToken(url, data) {
+  return new Promise((resolve, reject) => {
+    uni.request({
+      url: `${config.baseUrl}${url}`,
+      method: 'POST',
+      data,
+      success(response) {
+        const { statusCode, data: responseData } = response
+        if (statusCode >= 200 && statusCode < 300 && responseData && (responseData.code === 200 || responseData.code === '200')) {
+          resolve(responseData.data)
+          return
+        }
+        reject(buildHttpError(response))
+      },
+      fail(error) {
+        reject(buildNetworkError(error))
+      }
+    })
+  })
+}
+
+function getWxLoginCode() {
+  return new Promise((resolve, reject) => {
+    uni.login({
+      provider: 'weixin',
+      success(loginResult) {
+        if (!loginResult.code) {
+          reject(new Error('未获取到微信登录 code'))
+          return
+        }
+        resolve(loginResult.code)
+      },
+      fail(error) {
+        reject(error || new Error('微信登录失败'))
+      }
+    })
+  })
+}
+
+async function silentLogin() {
+  const loginData = isMiniAppDevLoginEnabled()
+    ? await requestLoginToken('/api/mini/dev-login')
+    : await requestLoginToken('/api/mini/login', { code: await getWxLoginCode() })
+  saveLoginResult(loginData)
+  return loginData
+}
+
+async function retryAfterUnauthorized(options, error) {
+  clearLoginState()
+  if (options.authRetryAttempted) {
+    redirectIfNeeded(options, error)
+    throw error
+  }
+  try {
+    await silentLogin()
+  } catch (loginError) {
+    if (isServerUnavailableError(loginError)) {
+      throw loginError
+    }
+    redirectIfNeeded(options, loginError)
+    throw loginError
+  }
+  return request({
+    ...options,
+    authRetryAttempted: true
+  })
 }
 
 export default function request(options = {}) {
   const {
     redirectOnUnauthorized,
     unauthorizedReason,
+    authRetryAttempted,
     ...requestOptions
   } = options
   const token = getToken()
@@ -57,25 +144,27 @@ export default function request(options = {}) {
         if (statusCode === 401) {
           const error = buildUnauthorizedError(response)
           error.msg = unauthorizedReason || error.msg
-          handleUnauthorized({ redirectOnUnauthorized }, error)
-          reject(error)
+          retryAfterUnauthorized({ ...requestOptions, redirectOnUnauthorized, unauthorizedReason, authRetryAttempted }, error)
+            .then(resolve)
+            .catch(reject)
           return
         }
 
         if (statusCode < 200 || statusCode >= 300) {
           uni.showToast({
-            title: '请求失败',
+            title: statusCode >= 500 ? '服务暂时不可用' : '请求失败',
             icon: 'none'
           })
-          reject(response)
+          reject(buildHttpError(response))
           return
         }
 
         if (data && (data.code === 401 || data.code === '401')) {
           const error = buildUnauthorizedError(data)
           error.msg = data.msg || unauthorizedReason || error.msg
-          handleUnauthorized({ redirectOnUnauthorized }, error)
-          reject(error)
+          retryAfterUnauthorized({ ...requestOptions, redirectOnUnauthorized, unauthorizedReason, authRetryAttempted }, error)
+            .then(resolve)
+            .catch(reject)
           return
         }
 
@@ -91,11 +180,12 @@ export default function request(options = {}) {
         resolve(data)
       },
       fail(error) {
+        const networkError = buildNetworkError(error)
         uni.showToast({
-          title: '网络异常',
+          title: getErrorMessage(networkError, '网络异常'),
           icon: 'none'
         })
-        reject(error)
+        reject(networkError)
       }
     })
   })

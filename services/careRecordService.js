@@ -1,4 +1,5 @@
 import { createCareRecord, getCareRecordList, getTodayCareSummary } from '../api/careRecord'
+import { sanitizeVisibleText } from './textSanitizer'
 
 export const CARE_RECORD_TYPES = [
   { recordType: 'FEEDING', label: '喂奶', quickLabel: '记录喂奶', defaultRemark: '记录喂奶' },
@@ -52,8 +53,9 @@ export function toCareRecordViewModel(raw) {
     recordTypeLabel: raw.recordTypeLabel || getRecordTypeLabel(raw.recordType),
     recordTime: raw.recordTime || '',
     displayTime: formatTime(raw.recordTime),
-    remark: raw.remark || '',
-    displayRemark: raw.remark || '快速记录'
+    remark: sanitizeVisibleText(raw.remark || ''),
+    displayRemark: sanitizeVisibleText(raw.remark || '快速记录'),
+    voiceRecordId: raw.voiceRecordId
   }
 }
 

@@ -1,5 +1,6 @@
 import { getPlanTemplateList } from '../api/plan'
 import { createReminderNode } from '../api/reminder'
+import { sanitizeVisibleText } from './textSanitizer'
 
 export const CARE_TYPE_META = {
   FEEDING: {
@@ -44,18 +45,20 @@ export function toPlanTemplateViewModel(raw) {
     return null
   }
   const meta = CARE_TYPE_META[raw.careType] || {}
+  const templateName = sanitizeVisibleText(raw.templateName || meta.title || '计划模板')
+  const description = sanitizeVisibleText(raw.description || '')
   return {
     templateId: raw.templateId,
-    templateName: raw.templateName || meta.title || '计划模板',
+    templateName,
     careType: raw.careType,
     careTypeLabel: raw.careTypeLabel || meta.label || '计划',
     babyAgeMinDays: raw.babyAgeMinDays,
     babyAgeMaxDays: raw.babyAgeMaxDays,
     suggestTime: raw.suggestTime || '',
     displayTime: formatTime(raw.suggestTime),
-    description: raw.description || '',
+    description,
     enabled: raw.enabled,
-    title: meta.title || raw.templateName || '计划模板',
+    title: sanitizeVisibleText(meta.title || raw.templateName || '计划模板'),
     pageUrl: meta.pageUrl || ''
   }
 }

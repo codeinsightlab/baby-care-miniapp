@@ -50,6 +50,12 @@
       }
     },
     {
+      "path": "pages/baby/collaboration",
+      "style": {
+        "navigationBarTitleText": "宝宝协作"
+      }
+    },
+    {
       "path": "pages/record/voice",
       "style": {
         "navigationBarTitleText": "语音记录"
@@ -64,7 +70,7 @@
     {
       "path": "pages/plan/index",
       "style": {
-        "navigationBarTitleText": "计划管理"
+        "navigationBarTitleText": "照护计划"
       }
     },
     {
@@ -89,29 +95,37 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "宝宝护理",
-    "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f7f8fa"
+    "navigationBarBackgroundColor": "#FFF8EE",
+    "backgroundColor": "#FFF8EE"
   },
   "tabBar": {
-    "color": "#8a94a6",
-    "selectedColor": "#1f7a6d",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
+    "color": "#97A39A",
+    "selectedColor": "#F6B84B",
+    "backgroundColor": "#FFFDF8",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/today/index",
+        "iconPath": "static/tabbar/today.svg",
+        "selectedIconPath": "static/tabbar/today-active.svg",
         "text": "今日"
       },
       {
         "pagePath": "pages/record/index",
+        "iconPath": "static/tabbar/record.svg",
+        "selectedIconPath": "static/tabbar/record-active.svg",
         "text": "记录"
       },
       {
         "pagePath": "pages/reminder/index",
+        "iconPath": "static/tabbar/reminder.svg",
+        "selectedIconPath": "static/tabbar/reminder-active.svg",
         "text": "提醒"
       },
       {
         "pagePath": "pages/baby/index",
+        "iconPath": "static/tabbar/baby.svg",
+        "selectedIconPath": "static/tabbar/baby-active.svg",
         "text": "宝宝"
       }
     ]

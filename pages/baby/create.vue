@@ -121,7 +121,7 @@ export default {
 .create-page {
   min-height: 100vh;
   padding: 42rpx 28rpx 80rpx;
-  background: #f6fbf8;
+  background: #fff8ee;
 }
 
 .create-header {
@@ -130,9 +130,9 @@ export default {
 
 .form-section {
   padding: 30rpx 28rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(96, 124, 114, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
 
 .field {
@@ -146,7 +146,7 @@ export default {
 .field-label {
   display: block;
   margin-bottom: 12rpx;
-  color: #334155;
+  color: #2f2f2f;
   font-size: 26rpx;
   font-weight: 500;
 }
@@ -157,21 +157,21 @@ export default {
   width: 100%;
   min-height: 86rpx;
   padding: 0 24rpx;
-  border: 1rpx solid #e7efeb;
-  border-radius: 12rpx;
-  background: #fbfdfc;
-  color: #1f2933;
+  border: 1rpx solid #f0e6d6;
+  border-radius: 18rpx;
+  background: #fffaf2;
+  color: #2f2f2f;
   font-size: 30rpx;
   line-height: 86rpx;
 }
 
 .field-input::placeholder {
-  color: #9aa5b1;
+  color: #a8a8a8;
 }
 
 .create-action {
   border-radius: 999rpx;
-  background: #78b9a2;
-  box-shadow: 0 10rpx 24rpx rgba(120, 185, 162, 0.22);
+  background: #f6b84b;
+  box-shadow: 0 10rpx 24rpx rgba(246, 184, 75, 0.22);
 }
 </style>

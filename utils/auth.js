@@ -40,12 +40,16 @@ export function clearUser() {
   uni.removeStorageSync(USER_KEY)
 }
 
+export function clearLoginState() {
+  clearToken()
+  clearUser()
+}
+
 export function clearCurrentBabyId() {
   uni.removeStorageSync(CURRENT_BABY_ID_KEY)
 }
 
 export function clearAuth() {
-  clearToken()
-  clearUser()
+  clearLoginState()
   clearCurrentBabyId()
 }

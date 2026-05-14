@@ -16,10 +16,10 @@
 </template>
 
 <script>
-import { fetchBabyDetail, fetchBabyList } from '../../services/babyService'
-import { loginForCurrentEnvResult } from '../../services/loginService'
-import { getToken, saveLoginResult } from '../../utils/auth'
-import { clearCurrentBabyId, getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
+import { ensureSilentLogin } from '../../services/loginService'
+import { getToken } from '../../utils/auth'
+import { getCurrentBabyId } from '../../utils/currentBaby'
+import { isServerUnavailableError } from '../../utils/errorClassifier'
 
 export default {
   name: 'SplashPage',
@@ -35,70 +35,36 @@ export default {
     async bootstrap() {
       try {
         if (!getToken()) {
-          await this.loginWithWechat()
+          await this.loginSilently()
         }
-
-        try {
-          await this.restoreCurrentBaby()
-        } catch (error) {
-          if (!error || !error.unauthorized) {
-            throw error
-          }
-          await this.loginWithWechat()
-          await this.restoreCurrentBaby()
-        }
+        this.restoreEntry()
       } catch (error) {
+        if (isServerUnavailableError(error)) {
+          this.restoreEntry()
+          return
+        }
         this.goLogin(error)
       }
     },
-    async loginWithWechat() {
+    async loginSilently() {
       this.statusText = '正在进入宝宝空间...'
-      saveLoginResult(await loginForCurrentEnvResult())
+      await ensureSilentLogin()
     },
-    async restoreCurrentBaby() {
-      const requestOptions = {
-        redirectOnUnauthorized: false
-      }
-      let babyId = getCurrentBabyId()
-
-      if (babyId) {
-        this.statusText = '正在同步宝宝数据...'
-        try {
-          await this.loadBabyDetail(babyId, requestOptions)
-          this.goToday()
-          return
-        } catch (error) {
-          if (error && error.unauthorized) {
-            throw error
-          }
-          clearCurrentBabyId()
-        }
-      }
-
-      this.statusText = '正在准备宝宝空间...'
-      const babies = await fetchBabyList(requestOptions)
-      const firstBaby = babies[0]
-      if (!firstBaby || !firstBaby.babyId) {
-        this.goCreate()
+    restoreEntry() {
+      if (getCurrentBabyId()) {
+        this.goToday()
         return
       }
-
-      babyId = firstBaby.babyId
-      await this.loadBabyDetail(babyId, requestOptions)
-      setCurrentBabyId(babyId)
-      this.goToday()
-    },
-    async loadBabyDetail(babyId, requestOptions) {
-      return fetchBabyDetail(babyId, requestOptions)
+      this.goBabyList()
     },
     goToday() {
       uni.switchTab({
         url: '/pages/today/index'
       })
     },
-    goCreate() {
-      uni.navigateTo({
-        url: '/pages/baby/create'
+    goBabyList() {
+      uni.switchTab({
+        url: '/pages/baby/index'
       })
     },
     goLogin(error) {
@@ -119,7 +85,7 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 72rpx 48rpx;
-  background: linear-gradient(180deg, #fff8f1 0%, #f6fbf8 100%);
+  background: #fff8ee;
 }
 
 .splash-main {
@@ -137,8 +103,8 @@ export default {
   width: 260rpx;
   height: 260rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 20rpx 54rpx rgba(96, 124, 114, 0.12);
+  background: #ffffff;
+  box-shadow: 0 20rpx 54rpx rgba(159, 135, 72, 0.12);
 }
 
 .splash-image {
@@ -148,7 +114,7 @@ export default {
 
 .splash-title {
   margin-top: 44rpx;
-  color: #22313f;
+  color: #2f2f2f;
   font-size: 44rpx;
   font-weight: 600;
   line-height: 1.3;
@@ -156,7 +122,7 @@ export default {
 
 .splash-tip {
   margin-top: 18rpx;
-  color: #6b7a86;
+  color: #7a7a7a;
   font-size: 28rpx;
   line-height: 1.6;
 }
@@ -171,7 +137,7 @@ export default {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #78b9a2;
+  background: #f6b84b;
   animation: dotPulse 1.2s ease-in-out infinite;
 }
 

@@ -40,8 +40,9 @@ export default {
 <style scoped>
 .profile-page {
   min-height: 100vh;
+  box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #fff7dc;
+  background: #fff8ee;
 }
 
 .profile-header {
@@ -60,27 +61,27 @@ export default {
   margin-right: 22rpx;
   border-radius: 50%;
   background: #ffffff;
-  color: #d58b4d;
+  color: #f6b84b;
   font-size: 36rpx;
   font-weight: 700;
 }
 
 .page-title {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin-top: 8rpx;
-  color: #7a6a45;
+  color: #7a7a7a;
   font-size: 24rpx;
 }
 
 .form-card,
 .notice-card {
   padding: 28rpx 24rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
@@ -89,7 +90,7 @@ export default {
   display: flex;
   justify-content: space-between;
   padding: 24rpx 0;
-  border-bottom: 1rpx solid #edf1f3;
+  border-bottom: 1rpx solid #f0e6d6;
 }
 
 .field-row:last-child {
@@ -99,19 +100,19 @@ export default {
 .field-label {
   flex-shrink: 0;
   margin-right: 24rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 26rpx;
 }
 
 .field-value {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 26rpx;
   text-align: right;
 }
 
 .notice-card {
   margin-top: 22rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
 }

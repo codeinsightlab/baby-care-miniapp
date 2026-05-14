@@ -3,7 +3,7 @@
     <view class="reminder-hero">
       <view class="baby-pill">{{ currentBabyId ? '当前宝宝已选择' : '未选择宝宝' }}</view>
       <view class="page-title">提醒</view>
-      <view class="page-desc">查看当前宝宝的计划提醒，完成或稍后都会同步到后端。</view>
+      <view class="page-desc">查看当前宝宝的个人提醒，完成或稍后都会同步记录。</view>
     </view>
 
     <view class="section-card next-card">
@@ -13,6 +13,14 @@
         <view>
           <view class="empty-title">正在加载提醒</view>
           <view class="empty-desc">请稍候。</view>
+        </view>
+      </view>
+      <view v-else-if="loadError" class="empty-reminder">
+        <view class="reminder-icon">铃</view>
+        <view>
+          <view class="empty-title">提醒加载失败</view>
+          <view class="empty-desc">{{ loadErrorText }}</view>
+          <button class="soft-action retry-action" @click="loadReminders">重新加载</button>
         </view>
       </view>
       <view v-else-if="nextReminder" class="empty-reminder">
@@ -26,11 +34,11 @@
         <view class="reminder-icon">铃</view>
         <view>
           <view class="empty-title">暂无待执行提醒</view>
-          <view class="empty-desc">可在计划管理中创建提醒节点。</view>
+          <view class="empty-desc">可在照护计划中创建提醒节点。</view>
         </view>
       </view>
       <view class="action-row" :class="{ triple: nextReminder }">
-        <button class="primary-action" @click="goPlan">计划管理</button>
+        <button class="primary-action" @click="goPlan">照护计划</button>
         <button v-if="nextReminder" class="soft-action" :disabled="submitting" @click="handleComplete(nextReminder)">完成</button>
         <button class="soft-action" :disabled="!nextReminder || submitting" @click="handleSnooze(nextReminder)">稍后提醒</button>
       </view>
@@ -91,6 +99,7 @@ import {
   snoozeReminder
 } from '../../services/reminderService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
+import { getErrorMessage } from '../../utils/errorClassifier'
 import { requestReminderSubscribe } from '../../utils/subscribe'
 
 export default {
@@ -99,6 +108,8 @@ export default {
     return {
       currentBabyId: '',
       loading: false,
+      loadError: false,
+      loadErrorText: '',
       submitting: false,
       todayReminders: [],
       reminders: [],
@@ -123,6 +134,7 @@ export default {
   methods: {
     async loadReminders() {
       this.loading = true
+      this.loadError = false
       try {
         const today = await fetchTodayReminders(this.currentBabyId)
         const list = await fetchReminderList(this.currentBabyId)
@@ -133,6 +145,8 @@ export default {
         this.todayReminders = []
         this.reminders = []
         this.typeSummaries = buildReminderTypeSummaries([])
+        this.loadErrorText = getErrorMessage(error)
+        this.loadError = true
       } finally {
         this.loading = false
       }
@@ -202,8 +216,9 @@ export default {
 <style scoped>
 .reminder-page {
   min-height: 100vh;
+  box-sizing: border-box;
   padding: 34rpx 28rpx 180rpx;
-  background: #f7fbff;
+  background: #fff8ee;
 }
 
 .reminder-hero {
@@ -214,21 +229,21 @@ export default {
   display: inline-flex;
   padding: 8rpx 18rpx;
   border-radius: 999rpx;
-  background: #ffffff;
-  color: #5f6f89;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 22rpx;
 }
 
 .page-title {
   margin-top: 18rpx;
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin-top: 8rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -236,13 +251,13 @@ export default {
 .section-card {
   margin-bottom: 20rpx;
   padding: 26rpx 24rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(96, 124, 144, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
 
 .section-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 30rpx;
   font-weight: 700;
 }
@@ -253,7 +268,14 @@ export default {
   margin-top: 24rpx;
   padding: 24rpx;
   border-radius: 16rpx;
-  background: #f7faff;
+  background: #fffaf2;
+}
+
+.retry-action {
+  margin-top: 16rpx;
+  color: #d58b4d;
+  background: #fff3ce;
+  border-radius: 999rpx;
 }
 
 .reminder-icon {
@@ -265,8 +287,8 @@ export default {
   height: 78rpx;
   margin-right: 18rpx;
   border-radius: 50%;
-  background: #e8f0ff;
-  color: #4e7edb;
+  background: #fff1df;
+  color: #d58b4d;
   font-size: 26rpx;
   font-weight: 700;
 }
@@ -274,7 +296,7 @@ export default {
 .empty-title,
 .type-title,
 .setting-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 27rpx;
   font-weight: 700;
 }
@@ -282,7 +304,7 @@ export default {
 .empty-desc,
 .type-desc {
   margin-top: 8rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 23rpx;
   line-height: 1.5;
 }
@@ -295,25 +317,32 @@ export default {
 }
 
 .action-row.triple {
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 .primary-action,
 .soft-action {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0 10rpx;
   height: 82rpx;
   border-radius: 999rpx;
-  font-size: 27rpx;
+  font-size: 25rpx;
   line-height: 82rpx;
+  white-space: nowrap;
 }
 
 .primary-action {
-  background: #4e7edb;
+  background: #f6b84b;
   color: #ffffff;
 }
 
 .soft-action {
-  background: #f5f7fb;
-  color: #64748b;
+  background: #fff3ce;
+  color: #d58b4d;
 }
 
 .reminder-grid {
@@ -324,10 +353,12 @@ export default {
 }
 
 .type-card {
+  box-sizing: border-box;
+  min-width: 0;
   min-height: 150rpx;
   padding: 22rpx 16rpx;
-  border-radius: 16rpx;
-  background: #f8fafc;
+  border-radius: 18rpx;
+  background: #fffaf2;
 }
 
 .type-icon {
@@ -381,7 +412,12 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #edf1f3;
+  border-bottom: 1rpx solid #f0e6d6;
+}
+
+.reminder-row > view:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .reminder-row:last-child {
@@ -390,22 +426,24 @@ export default {
 
 .row-actions {
   display: flex;
+  flex-shrink: 0;
   gap: 10rpx;
   margin-left: 16rpx;
 }
 
 .mini-action {
+  box-sizing: border-box;
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: #e8f0ff;
-  color: #4e7edb;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 22rpx;
   line-height: 1.5;
 }
 
 .soft-mini {
-  background: #f5f7fb;
-  color: #64748b;
+  background: #fffaf2;
+  color: #7a7a7a;
 }
 
 .list-empty {
@@ -422,8 +460,8 @@ export default {
 .subscribe-action {
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: #e8f0ff;
-  color: #4e7edb;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 23rpx;
   line-height: 1.5;
 }

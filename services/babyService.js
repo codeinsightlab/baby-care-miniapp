@@ -1,5 +1,6 @@
 import { createBaby, getBabyDetail, getBabyList } from '../api/baby'
 import { createFamily } from '../api/family'
+import { sanitizeVisibleText } from './textSanitizer'
 
 const genderTextMap = {
   0: '性别未设置',
@@ -45,7 +46,7 @@ export function toBabyViewModel(raw) {
   if (!raw) {
     return null
   }
-  const nickname = raw.nickname || ''
+  const nickname = sanitizeVisibleText(raw.nickname || '')
   return {
     babyId: raw.babyId,
     familyId: raw.familyId,

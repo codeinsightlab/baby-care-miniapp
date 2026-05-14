@@ -15,7 +15,7 @@
         :disabled="loading || devLoginLoading"
         @click="handleDevLogin"
       >
-        开发调试登录
+        本地快捷进入
       </button>
     </view>
   </view>
@@ -23,8 +23,8 @@
 
 <script>
 import { isMiniAppDevLoginEnabled } from '../../config/env'
-import { devLoginResult, loginForCurrentEnvResult } from '../../services/loginService'
-import { clearAuth, saveLoginResult } from '../../utils/auth'
+import { devLoginResult, ensureSilentLogin } from '../../services/loginService'
+import { clearAuth, clearLoginState, saveLoginResult } from '../../utils/auth'
 
 export default {
   name: 'LoginPage',
@@ -51,9 +51,9 @@ export default {
         return
       }
       this.loading = true
-      clearAuth()
+      clearLoginState()
       try {
-        saveLoginResult(await loginForCurrentEnvResult())
+        await ensureSilentLogin()
         uni.switchTab({
           url: '/pages/today/index'
         })
@@ -79,7 +79,7 @@ export default {
           url: '/pages/today/index'
         })
       } catch (error) {
-        this.reasonText = error.msg || error.message || '调试登录失败，请检查后端开发配置。'
+        this.reasonText = error.msg || error.message || '快捷进入失败，请稍后重试。'
         uni.showToast({
           title: this.reasonText,
           icon: 'none'
@@ -98,14 +98,14 @@ export default {
   min-height: 100vh;
   flex-direction: column;
   justify-content: center;
-  background: #fff8f1;
+  background: #fff8ee;
 }
 
 .login-card {
   box-sizing: border-box;
   width: 100%;
   padding: 44rpx 36rpx 40rpx;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   background: #ffffff;
   box-shadow: 0 18rpx 46rpx rgba(96, 124, 114, 0.1);
 }
@@ -119,18 +119,18 @@ export default {
   margin-bottom: 28rpx;
   border-radius: 50%;
   background: #fff1df;
-  color: #d58b4d;
+  color: #f6b84b;
   font-size: 38rpx;
   font-weight: 600;
 }
 
 .page-title {
-  color: #22313f;
+  color: #2f2f2f;
 }
 
 .login-note {
   margin-top: 18rpx;
-  color: #8a6f5a;
+  color: #7a7a7a;
   font-size: 26rpx;
   line-height: 1.6;
 }
@@ -138,15 +138,15 @@ export default {
 .login-action {
   width: 100%;
   border-radius: 999rpx;
-  background: #78b9a2;
+  background: #f6b84b;
 }
 
 .dev-login-action {
   width: 100%;
   margin-top: 20rpx;
   border-radius: 999rpx;
-  color: #4f7f70;
-  background: #edf8f3;
+  color: #d58b4d;
+  background: #fff3ce;
   font-size: 28rpx;
 }
 </style>

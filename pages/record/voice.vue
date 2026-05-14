@@ -1,43 +1,148 @@
 <template>
   <view class="voice-page">
     <view class="voice-header">
-      <view class="page-title">语音记录</view>
-      <view class="page-desc">按原型保留语音录入骨架，录音和识别能力待接入。</view>
+      <view class="page-title">语音备注</view>
+      <view class="page-desc">{{ pageDesc }}</view>
     </view>
 
     <view class="recording-card">
-      <view class="recording-title">正在聆听，请说话</view>
-      <view class="wave">
+      <view class="recording-title">{{ statusTitle }}</view>
+      <view class="wave" :class="{ active: recognizing }">
         <view class="bar short"></view>
         <view class="bar"></view>
         <view class="bar tall"></view>
         <view class="bar"></view>
         <view class="bar short"></view>
       </view>
+
       <view class="recognized-card">
-        <view class="recognized-label">识别结果占位</view>
-        <view class="recognized-text">这里会展示宝宝护理记录的语音识别文本。</view>
+        <view class="recognized-label">{{ resultLabel }}</view>
+        <view class="recognized-text">{{ resultText }}</view>
       </view>
-      <view class="stop-button">待接入</view>
+
+      <view v-if="mockVoiceEnabled" class="mock-actions">
+        <button class="soft-action" :disabled="recognizing" @click="handleMockFail">手动填写</button>
+        <button class="primary-action" :disabled="recognizing || !currentBabyId" @click="handleMockSuccess">
+          {{ recognizing ? '识别中' : '开始识别' }}
+        </button>
+      </view>
+      <view v-else class="unavailable-actions">
+        <button class="primary-action" disabled>暂未开放</button>
+      </view>
     </view>
 
     <view class="footer-actions">
       <button class="soft-action" @click="goBack">返回</button>
-      <button class="primary-action" @click="goConfirm">查看确认页</button>
+      <button class="primary-action" :disabled="!canConfirm" @click="goConfirm">去确认</button>
     </view>
   </view>
 </template>
 
 <script>
+import { isMockVoiceEnabled } from '../../config/env'
+import { mockRecognizeVoice } from '../../services/speechService'
+import { getCurrentBabyId } from '../../utils/currentBaby'
+
 export default {
   name: 'RecordVoicePage',
+  data() {
+    return {
+      currentBabyId: '',
+      recognizing: false,
+      voiceRecord: null,
+      mockVoiceEnabled: isMockVoiceEnabled()
+    }
+  },
+  computed: {
+    pageDesc() {
+      return this.mockVoiceEnabled ? '说一句照护备注，识别文字会作为备注草稿。' : '语音输入暂未开放，可先使用普通记录填写备注。'
+    },
+    canConfirm() {
+      return !!(this.voiceRecord && this.voiceRecord.voiceRecordId)
+    },
+    statusTitle() {
+      if (!this.currentBabyId) {
+        return '请先选择宝宝'
+      }
+      if (this.recognizing) {
+        return '正在识别'
+      }
+      if (!this.voiceRecord) {
+        return this.mockVoiceEnabled ? '点击开始识别' : '语音输入暂未开放'
+      }
+      return this.voiceRecord.status === 'FAILED' ? '识别失败，可手动输入' : '识别完成'
+    },
+    resultLabel() {
+      return this.voiceRecord ? this.voiceRecord.statusLabel : '备注草稿'
+    },
+    resultText() {
+      if (!this.voiceRecord) {
+        return this.mockVoiceEnabled ? '这里会展示识别后的备注文字。' : '请先使用普通记录填写备注。'
+      }
+      return this.voiceRecord.finalText || this.voiceRecord.failReason || '可以在确认页手动输入备注。'
+    }
+  },
+  onShow() {
+    this.currentBabyId = getCurrentBabyId()
+  },
   methods: {
+    async handleMockSuccess() {
+      await this.recognize(false)
+    },
+    async handleMockFail() {
+      await this.recognize(true)
+    },
+    async recognize(mockFail) {
+      if (!this.mockVoiceEnabled) {
+        uni.showToast({
+          title: '语音输入暂未开放',
+          icon: 'none'
+        })
+        return
+      }
+      if (!this.currentBabyId) {
+        uni.showToast({
+          title: '请先选择宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      this.recognizing = true
+      try {
+        this.voiceRecord = await mockRecognizeVoice({
+          babyId: this.currentBabyId,
+          mockText: '宝宝刚刚完成护理，状态很好。',
+          mockFail
+        })
+        if (this.voiceRecord.status === 'FAILED') {
+          uni.showToast({
+            title: '可手动输入备注',
+            icon: 'none'
+          })
+        }
+      } catch (error) {
+        uni.showToast({
+          title: error.msg || '识别失败',
+          icon: 'none'
+        })
+      } finally {
+        this.recognizing = false
+      }
+    },
     goBack() {
       uni.navigateBack()
     },
     goConfirm() {
+      if (!this.canConfirm) {
+        return
+      }
+      const query = [
+        `voiceRecordId=${encodeURIComponent(this.voiceRecord.voiceRecordId)}`,
+        `recognizeText=${encodeURIComponent(this.voiceRecord.finalText || '')}`,
+        `status=${encodeURIComponent(this.voiceRecord.status || '')}`
+      ]
       uni.navigateTo({
-        url: '/pages/record/confirm'
+        url: `/pages/record/confirm?${query.join('&')}`
       })
     }
   }
@@ -47,8 +152,9 @@ export default {
 <style scoped>
 .voice-page {
   min-height: 100vh;
+  box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #fff7dc;
+  background: #fff8ee;
 }
 
 .voice-header {
@@ -56,14 +162,14 @@ export default {
 }
 
 .page-title {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin-top: 10rpx;
-  color: #7a6a45;
+  color: #7a7a7a;
   font-size: 25rpx;
   line-height: 1.6;
 }
@@ -71,13 +177,14 @@ export default {
 .recording-card {
   min-height: 720rpx;
   padding: 56rpx 32rpx;
-  border-radius: 22rpx;
-  background: #fff3a7;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
   text-align: center;
 }
 
 .recording-title {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 32rpx;
   font-weight: 700;
 }
@@ -94,7 +201,7 @@ export default {
   height: 72rpx;
   margin: 0 8rpx;
   border-radius: 999rpx;
-  background: #3f3f46;
+  background: #f0e6d6;
 }
 
 .bar.short {
@@ -103,6 +210,10 @@ export default {
 
 .bar.tall {
   height: 104rpx;
+}
+
+.wave.active .bar {
+  background: #f6b84b;
 }
 
 .recognized-card {
@@ -120,26 +231,15 @@ export default {
 }
 
 .recognized-text {
+  min-height: 88rpx;
   margin-top: 10rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 25rpx;
   line-height: 1.6;
 }
 
-.stop-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 112rpx;
-  height: 112rpx;
-  margin: 54rpx auto 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
-  color: #9aa5b1;
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
+.mock-actions,
+.unavailable-actions,
 .footer-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -147,8 +247,16 @@ export default {
   margin-top: 30rpx;
 }
 
+.unavailable-actions {
+  grid-template-columns: 1fr;
+}
+
 .soft-action,
 .primary-action {
+  box-sizing: border-box;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
   height: 86rpx;
   border-radius: 999rpx;
   font-size: 28rpx;
@@ -156,12 +264,16 @@ export default {
 }
 
 .soft-action {
-  background: #ffffff;
-  color: #64748b;
+  background: #fff3ce;
+  color: #d58b4d;
 }
 
 .primary-action {
-  background: #f5c84c;
+  background: #f6b84b;
   color: #ffffff;
+}
+
+button[disabled] {
+  opacity: 0.55;
 }
 </style>

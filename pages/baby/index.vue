@@ -9,7 +9,7 @@
 
     <view v-else-if="loadError" class="empty-state">
       <view class="empty-title">宝宝列表加载失败</view>
-      <view class="empty-desc">请稍后重试。</view>
+      <view class="empty-desc">{{ loadErrorText }}</view>
       <button class="page-action soft-action" @click="loadBabies">重新加载</button>
     </view>
 
@@ -17,6 +17,7 @@
       <view class="empty-title">还没有宝宝档案</view>
       <view class="empty-desc">新增宝宝后，就可以进入今日页面。</view>
       <button class="page-action primary-action" type="primary" @click="goCreate">新增宝宝</button>
+      <button class="page-action soft-action" @click="goCollaboration">邀请照顾人</button>
     </view>
 
     <view v-else class="baby-list">
@@ -36,6 +37,7 @@
       </view>
 
       <button class="page-action soft-action" @click="goCreate">新增宝宝</button>
+      <button class="page-action soft-action" @click="goCollaboration">宝宝协作</button>
     </view>
   </view>
 </template>
@@ -43,10 +45,7 @@
 <script>
 import { fetchBabyList } from '../../services/babyService'
 import { getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
-
-function isUnauthorizedError(error) {
-  return error && (error.unauthorized || error.statusCode === 401 || error.code === 401 || error.code === '401')
-}
+import { getErrorMessage, isUnauthorizedError } from '../../utils/errorClassifier'
 
 export default {
   name: 'BabyPage',
@@ -54,6 +53,7 @@ export default {
     return {
       loading: false,
       loadError: false,
+      loadErrorText: '',
       babies: [],
       currentBabyId: ''
     }
@@ -73,6 +73,7 @@ export default {
           return
         }
         this.babies = []
+        this.loadErrorText = getErrorMessage(error)
         this.loadError = true
       } finally {
         this.loading = false
@@ -91,6 +92,11 @@ export default {
       uni.navigateTo({
         url: '/pages/baby/create'
       })
+    },
+    goCollaboration() {
+      uni.navigateTo({
+        url: '/pages/baby/collaboration'
+      })
     }
   }
 }
@@ -100,7 +106,7 @@ export default {
 .baby-page {
   min-height: 100vh;
   padding: 42rpx 28rpx 180rpx;
-  background: #f6fbf8;
+  background: #fff8ee;
 }
 
 .baby-header {
@@ -110,22 +116,22 @@ export default {
 .state-card,
 .empty-state {
   padding: 32rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  color: #6b7a86;
+  color: #7a7a7a;
   font-size: 28rpx;
-  box-shadow: 0 10rpx 28rpx rgba(96, 124, 114, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
 
 .empty-title {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 32rpx;
   font-weight: 600;
 }
 
 .empty-desc {
   margin-top: 12rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 26rpx;
   line-height: 1.6;
 }
@@ -141,14 +147,14 @@ export default {
   margin-bottom: 20rpx;
   padding: 26rpx 24rpx;
   border: 2rpx solid transparent;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(96, 124, 114, 0.06);
+  box-shadow: 0 8rpx 24rpx rgba(159, 135, 72, 0.07);
 }
 
 .baby-item.active {
-  border-color: #78b9a2;
-  background: #fbfffd;
+  border-color: #ffd166;
+  background: #fffdf8;
 }
 
 .baby-avatar {
@@ -161,7 +167,7 @@ export default {
   margin-right: 20rpx;
   border-radius: 50%;
   background: #fff1df;
-  color: #d58b4d;
+  color: #f6b84b;
   font-size: 30rpx;
   font-weight: 600;
 }
@@ -172,14 +178,14 @@ export default {
 }
 
 .baby-name {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 32rpx;
   font-weight: 600;
 }
 
 .baby-meta {
   margin-top: 8rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 26rpx;
 }
 
@@ -187,8 +193,8 @@ export default {
   margin-left: 20rpx;
   padding: 8rpx 18rpx;
   border-radius: 999rpx;
-  background: #eef8f3;
-  color: #1f7a6d;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 25rpx;
   white-space: nowrap;
 }
@@ -199,11 +205,11 @@ export default {
 }
 
 .primary-action {
-  background: #78b9a2;
+  background: #f6b84b;
 }
 
 .soft-action {
-  color: #1f7a6d;
-  background: #eef8f3;
+  color: #d58b4d;
+  background: #fff3ce;
 }
 </style>

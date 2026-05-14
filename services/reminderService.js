@@ -4,6 +4,7 @@ import {
   getTodayReminderNodes,
   snoozeReminderNode
 } from '../api/reminder'
+import { sanitizeVisibleText } from './textSanitizer'
 
 const statusLabels = {
   PENDING: '待提醒',
@@ -41,7 +42,7 @@ export function toReminderViewModel(raw) {
     reminderNodeId: raw.reminderNodeId,
     babyId: raw.babyId,
     templateId: raw.templateId,
-    templateName: raw.templateName || '提醒',
+    templateName: sanitizeVisibleText(raw.templateName || '提醒'),
     careType: raw.careType,
     careTypeLabel: raw.careTypeLabel || careTypeLabels[raw.careType] || '提醒',
     reminderTime: raw.reminderTime || '',
@@ -52,7 +53,7 @@ export function toReminderViewModel(raw) {
     statusLabel: raw.statusLabel || raw.todayStatusLabel || statusLabels[status] || status,
     todayStatus: raw.todayStatus || status,
     todayStatusLabel: raw.todayStatusLabel || statusLabels[raw.todayStatus] || statusLabels[status] || status,
-    remark: raw.remark || raw.templateName || '提醒'
+    remark: sanitizeVisibleText(raw.remark || raw.templateName || '提醒')
   }
 }
 

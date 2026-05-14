@@ -2,6 +2,12 @@
   <view class="page today-page">
     <view v-if="loading" class="state-card">正在同步宝宝数据...</view>
 
+    <view v-else-if="pageError" class="state-card">
+      <view class="empty-title">同步失败</view>
+      <view class="empty-desc">{{ pageError }}</view>
+      <button class="page-action soft-action" @click="loadCurrentBaby">重新加载</button>
+    </view>
+
     <view v-else-if="currentBaby">
       <view class="today-hero">
           <view class="baby-avatar">{{ babyInitial }}</view>
@@ -53,7 +59,7 @@
           <text class="section-icon clock">○</text>
           <text>当前待执行</text>
         </view>
-        <view v-if="todayReminders.length === 0" class="empty-desc section-empty">暂无待执行提醒。</view>
+        <view v-if="todayReminders.length === 0" class="empty-desc section-empty">暂无待执行提醒</view>
         <view v-else class="reminder-mini-list">
           <view v-for="item in todayReminders" :key="item.reminderNodeId" class="reminder-mini-row">
             <view>
@@ -68,9 +74,9 @@
       <view class="section-card">
         <view class="section-header">
           <view class="section-title">今日时间轴</view>
-          <view class="section-more">{{ recentRecords.length ? `${recentRecords.length}条` : '暂无记录' }}</view>
+          <view class="section-more">{{ recentRecords.length ? `${recentRecords.length}条` : '今天还没有记录' }}</view>
         </view>
-        <view v-if="recentRecords.length === 0" class="timeline-empty">今日还没有时间轴内容。</view>
+        <view v-if="recentRecords.length === 0" class="timeline-empty">今天还没有记录，完成一次照护后会在这里显示。</view>
         <view v-else class="timeline-list">
           <view v-for="record in recentRecords" :key="record.recordId" class="timeline-item">
             <view class="timeline-time">{{ record.displayTime }}</view>
@@ -110,19 +116,18 @@
 <script>
 import { fetchBabyDetail } from '../../services/babyService'
 import { fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
+import { ensureSilentLogin } from '../../services/loginService'
 import { fetchTodayReminders } from '../../services/reminderService'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
-
-function isUnauthorizedError(error) {
-  return error && (error.unauthorized || error.statusCode === 401 || error.code === 401 || error.code === '401')
-}
+import { getErrorMessage, isUnauthorizedError, shouldClearCurrentBabyId } from '../../utils/errorClassifier'
 
 export default {
   name: 'TodayPage',
   data() {
     return {
       loading: false,
+      pageError: '',
       currentBaby: null,
       todaySummary: null,
       recentRecords: [],
@@ -140,36 +145,58 @@ export default {
   methods: {
     async loadCurrentBaby() {
       if (!getToken()) {
-        this.currentBaby = null
-        clearCurrentBabyId()
-        uni.reLaunch({
-          url: '/pages/splash/index'
-        })
-        return
+        try {
+          await ensureSilentLogin()
+        } catch (error) {
+          this.pageError = getErrorMessage(error, '进入失败，请稍后重试。')
+          return
+        }
       }
 
       this.loading = true
-      try {
-        const babyId = getCurrentBabyId()
-        if (!babyId) {
-          this.goBabyList()
-          return
-        }
+      this.pageError = ''
+      const babyId = getCurrentBabyId()
+      if (!babyId) {
+        this.goBabyList()
+        this.loading = false
+        return
+      }
 
-        const baby = await fetchBabyDetail(babyId)
+      let baby = null
+      try {
+        baby = await fetchBabyDetail(babyId)
         this.currentBaby = baby
-        await this.loadTodaySummary(baby.babyId)
-        await this.loadTodayReminders(baby.babyId)
       } catch (error) {
-        this.currentBaby = null
         this.todaySummary = null
         this.recentRecords = []
         this.todayReminders = []
         if (isUnauthorizedError(error)) {
           return
         }
-        clearCurrentBabyId()
-        this.goBabyList()
+        if (shouldClearCurrentBabyId(error)) {
+          this.currentBaby = null
+          clearCurrentBabyId()
+          this.goBabyList()
+          return
+        }
+        this.pageError = getErrorMessage(error)
+        return
+      } finally {
+        this.loading = false
+      }
+
+      this.loading = true
+      try {
+        await this.loadTodaySummary(baby.babyId)
+        await this.loadTodayReminders(baby.babyId)
+      } catch (error) {
+        this.todaySummary = null
+        this.recentRecords = []
+        this.todayReminders = []
+        if (isUnauthorizedError(error)) {
+          return
+        }
+        this.pageError = getErrorMessage(error)
       } finally {
         this.loading = false
       }
@@ -198,17 +225,23 @@ export default {
 .today-page {
   min-height: 100vh;
   padding: 36rpx 28rpx 180rpx;
-  background: #fff7dc;
+  background: #fff8ee;
 }
 
 .state-card {
   margin-top: 32rpx;
   padding: 32rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
-  color: #6b7a86;
+  color: #7a7a7a;
   font-size: 28rpx;
   box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+}
+
+.soft-action {
+  color: #d58b4d;
+  background: #fff3ce;
+  border-radius: 999rpx;
 }
 
 .today-hero {
@@ -227,7 +260,7 @@ export default {
   margin-right: 18rpx;
   border-radius: 50%;
   background: #ffffff;
-  color: #d58b4d;
+  color: #f6b84b;
   font-size: 34rpx;
   font-weight: 600;
 }
@@ -238,7 +271,7 @@ export default {
 }
 
 .baby-name {
-  color: #1f2933;
+  color: #2f2f2f;
   font-size: 30rpx;
   font-weight: 600;
   line-height: 1.35;
@@ -246,7 +279,7 @@ export default {
 
 .baby-stage {
   margin-top: 4rpx;
-  color: #7a6a45;
+  color: #7a7a7a;
   font-size: 22rpx;
 }
 
@@ -262,8 +295,8 @@ export default {
   min-width: 0;
   height: 56rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.62);
-  color: #3f4a4f;
+  background: #fff3ce;
+  color: #d58b4d;
   font-size: 22rpx;
   line-height: 56rpx;
 }
@@ -272,7 +305,7 @@ export default {
 .section-card {
   margin-bottom: 20rpx;
   padding: 26rpx 24rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
 }
@@ -284,7 +317,7 @@ export default {
 }
 
 .section-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -309,8 +342,8 @@ export default {
   min-height: 132rpx;
   box-sizing: border-box;
   padding: 16rpx 8rpx;
-  border-radius: 14rpx;
-  background: #fafafa;
+  border-radius: 18rpx;
+  background: #fffaf2;
   text-align: center;
 }
 
@@ -331,14 +364,14 @@ export default {
 }
 
 .summary-label {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 23rpx;
   font-weight: 600;
 }
 
 .summary-value {
   margin-top: 8rpx;
-  color: #64748b;
+  color: #7a7a7a;
   font-size: 20rpx;
 }
 
@@ -368,8 +401,8 @@ export default {
   align-items: center;
   margin-top: 20rpx;
   padding: 20rpx;
-  border-radius: 14rpx;
-  background: #fafafa;
+  border-radius: 18rpx;
+  background: #fffaf2;
 }
 
 .voice-empty > view:last-child {
@@ -393,14 +426,14 @@ export default {
 }
 
 .empty-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 25rpx;
   font-weight: 600;
 }
 
 .empty-desc,
 .timeline-empty {
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 24rpx;
   line-height: 1.6;
   white-space: normal;
@@ -420,7 +453,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 16rpx 0;
-  border-bottom: 1rpx solid #f0f2f4;
+  border-bottom: 1rpx solid #f0e6d6;
 }
 
 .reminder-mini-row:last-child {
@@ -428,7 +461,7 @@ export default {
 }
 
 .reminder-mini-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 26rpx;
   font-weight: 700;
 }
@@ -448,7 +481,7 @@ export default {
 }
 
 .section-more {
-  color: #8a94a6;
+  color: #a8a8a8;
   font-size: 22rpx;
 }
 
@@ -465,7 +498,7 @@ export default {
 .timeline-item {
   display: flex;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #f0f2f4;
+  border-bottom: 1rpx solid #f0e6d6;
 }
 
 .timeline-item:last-child {
@@ -475,7 +508,7 @@ export default {
 .timeline-time {
   flex-shrink: 0;
   width: 88rpx;
-  color: #8a94a6;
+  color: #a8a8a8;
   font-size: 22rpx;
 }
 
@@ -485,14 +518,14 @@ export default {
 }
 
 .timeline-title {
-  color: #2f3a43;
+  color: #2f2f2f;
   font-size: 25rpx;
   font-weight: 600;
 }
 
 .timeline-remark {
   margin-top: 6rpx;
-  color: #7b8794;
+  color: #7a7a7a;
   font-size: 22rpx;
   line-height: 1.5;
 }
@@ -505,7 +538,7 @@ export default {
 }
 
 .quick-item {
-  color: #4b5563;
+  color: #2f2f2f;
   font-size: 21rpx;
   text-align: center;
 }
