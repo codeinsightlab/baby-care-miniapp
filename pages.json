@@ -42,6 +42,48 @@
       "style": {
         "navigationBarTitleText": "创建宝宝"
       }
+    },
+    {
+      "path": "pages/baby/profile",
+      "style": {
+        "navigationBarTitleText": "宝宝信息"
+      }
+    },
+    {
+      "path": "pages/record/voice",
+      "style": {
+        "navigationBarTitleText": "语音记录"
+      }
+    },
+    {
+      "path": "pages/record/confirm",
+      "style": {
+        "navigationBarTitleText": "记录确认"
+      }
+    },
+    {
+      "path": "pages/plan/index",
+      "style": {
+        "navigationBarTitleText": "计划管理"
+      }
+    },
+    {
+      "path": "pages/plan/feeding",
+      "style": {
+        "navigationBarTitleText": "喂养计划"
+      }
+    },
+    {
+      "path": "pages/plan/sleep",
+      "style": {
+        "navigationBarTitleText": "睡眠计划"
+      }
+    },
+    {
+      "path": "pages/plan/care",
+      "style": {
+        "navigationBarTitleText": "基础护理计划"
+      }
     }
   ],
   "globalStyle": {

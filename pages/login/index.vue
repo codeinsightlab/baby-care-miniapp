@@ -22,8 +22,8 @@
 </template>
 
 <script>
-import { devLogin, loginForCurrentEnv } from '../../api/login'
 import { isMiniAppDevLoginEnabled } from '../../config/env'
+import { devLoginResult, loginForCurrentEnvResult } from '../../services/loginService'
 import { clearAuth, saveLoginResult } from '../../utils/auth'
 
 export default {
@@ -53,9 +53,7 @@ export default {
       this.loading = true
       clearAuth()
       try {
-        const response = await loginForCurrentEnv()
-        const data = response && response.data ? response.data : null
-        saveLoginResult(data)
+        saveLoginResult(await loginForCurrentEnvResult())
         uni.switchTab({
           url: '/pages/today/index'
         })
@@ -76,9 +74,7 @@ export default {
       this.devLoginLoading = true
       clearAuth()
       try {
-        const response = await devLogin()
-        const data = response && response.data ? response.data : null
-        saveLoginResult(data)
+        saveLoginResult(await devLoginResult())
         uni.switchTab({
           url: '/pages/today/index'
         })

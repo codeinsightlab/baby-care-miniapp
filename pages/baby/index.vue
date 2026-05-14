@@ -1,7 +1,9 @@
 <template>
   <view class="page baby-page">
-    <view class="page-title">我的宝宝</view>
-    <view class="page-placeholder">选择当前宝宝后进入今日护理首页。</view>
+    <view class="baby-header">
+      <view class="page-title">我的宝宝</view>
+      <view class="page-placeholder">选择当前宝宝后进入今日护理首页。</view>
+    </view>
 
     <view v-if="loading" class="state-card">正在加载宝宝列表...</view>
 
@@ -25,9 +27,10 @@
         :class="{ active: String(baby.babyId) === String(currentBabyId) }"
         @click="selectBaby(baby)"
       >
+        <view class="baby-avatar">{{ baby.initial }}</view>
         <view class="baby-main">
           <view class="baby-name">{{ baby.nickname || '未命名宝宝' }}</view>
-          <view class="baby-meta">{{ formatGender(baby.gender) }} · {{ baby.birthday || '出生日期未设置' }}</view>
+          <view class="baby-meta">{{ baby.genderText }} · {{ baby.birthday || '出生日期未设置' }}</view>
         </view>
         <view class="baby-status">{{ String(baby.babyId) === String(currentBabyId) ? '当前宝宝' : '选择' }}</view>
       </view>
@@ -38,7 +41,7 @@
 </template>
 
 <script>
-import { getBabyList } from '../../api/baby'
+import { fetchBabyList } from '../../services/babyService'
 import { getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
 
 function isUnauthorizedError(error) {
@@ -64,8 +67,7 @@ export default {
       this.loading = true
       this.loadError = false
       try {
-        const response = await getBabyList()
-        this.babies = Array.isArray(response.data) ? response.data : []
+        this.babies = await fetchBabyList()
       } catch (error) {
         if (isUnauthorizedError(error)) {
           return
@@ -75,17 +77,6 @@ export default {
       } finally {
         this.loading = false
       }
-    },
-    formatGender(gender) {
-      const genderMap = {
-        0: '性别未设置',
-        1: '男宝',
-        2: '女宝',
-        UNKNOWN: '性别未设置',
-        MALE: '男宝',
-        FEMALE: '女宝'
-      }
-      return genderMap[gender] || '性别未设置'
     },
     selectBaby(baby) {
       if (!baby || !baby.babyId) {
@@ -107,25 +98,23 @@ export default {
 
 <style scoped>
 .baby-page {
-  background: #f7fbf8;
+  min-height: 100vh;
+  padding: 42rpx 28rpx 180rpx;
+  background: #f6fbf8;
 }
 
-.state-card {
-  margin-top: 32rpx;
-  padding: 30rpx 32rpx;
-  border-radius: 16rpx;
+.baby-header {
+  margin-bottom: 30rpx;
+}
+
+.state-card,
+.empty-state {
+  padding: 32rpx;
+  border-radius: 18rpx;
   background: #ffffff;
   color: #6b7a86;
   font-size: 28rpx;
-  box-shadow: 0 10rpx 32rpx rgba(96, 124, 114, 0.08);
-}
-
-.empty-state {
-  margin-top: 40rpx;
-  padding: 36rpx 32rpx;
-  border-radius: 16rpx;
-  background: #ffffff;
-  box-shadow: 0 10rpx 32rpx rgba(96, 124, 114, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(96, 124, 114, 0.08);
 }
 
 .empty-title {
@@ -142,28 +131,43 @@ export default {
 }
 
 .baby-list {
-  margin-top: 32rpx;
+  margin-top: 22rpx;
 }
 
 .baby-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   box-sizing: border-box;
   margin-bottom: 20rpx;
-  padding: 28rpx;
-  border: 1rpx solid #edf2ef;
-  border-radius: 16rpx;
+  padding: 26rpx 24rpx;
+  border: 2rpx solid transparent;
+  border-radius: 18rpx;
   background: #ffffff;
   box-shadow: 0 8rpx 24rpx rgba(96, 124, 114, 0.06);
 }
 
 .baby-item.active {
   border-color: #78b9a2;
-  background: #f7fffb;
+  background: #fbfffd;
+}
+
+.baby-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  margin-right: 20rpx;
+  border-radius: 50%;
+  background: #fff1df;
+  color: #d58b4d;
+  font-size: 30rpx;
+  font-weight: 600;
 }
 
 .baby-main {
+  flex: 1;
   min-width: 0;
 }
 
@@ -185,7 +189,7 @@ export default {
   border-radius: 999rpx;
   background: #eef8f3;
   color: #1f7a6d;
-  font-size: 26rpx;
+  font-size: 25rpx;
   white-space: nowrap;
 }
 

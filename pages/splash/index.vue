@@ -16,8 +16,8 @@
 </template>
 
 <script>
-import { loginForCurrentEnv } from '../../api/login'
-import { getBabyDetail, getBabyList } from '../../api/baby'
+import { fetchBabyDetail, fetchBabyList } from '../../services/babyService'
+import { loginForCurrentEnvResult } from '../../services/loginService'
 import { getToken, saveLoginResult } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
 
@@ -53,9 +53,7 @@ export default {
     },
     async loginWithWechat() {
       this.statusText = '正在进入宝宝空间...'
-      const response = await loginForCurrentEnv()
-      const data = response && response.data ? response.data : null
-      saveLoginResult(data)
+      saveLoginResult(await loginForCurrentEnvResult())
     },
     async restoreCurrentBaby() {
       const requestOptions = {
@@ -78,8 +76,7 @@ export default {
       }
 
       this.statusText = '正在准备宝宝空间...'
-      const listResponse = await getBabyList(requestOptions)
-      const babies = Array.isArray(listResponse.data) ? listResponse.data : []
+      const babies = await fetchBabyList(requestOptions)
       const firstBaby = babies[0]
       if (!firstBaby || !firstBaby.babyId) {
         this.goCreate()
@@ -92,12 +89,7 @@ export default {
       this.goToday()
     },
     async loadBabyDetail(babyId, requestOptions) {
-      const response = await getBabyDetail(babyId, requestOptions)
-      const baby = response && response.data ? response.data : null
-      if (!baby || !baby.babyId) {
-        throw new Error('当前宝宝不存在')
-      }
-      return baby
+      return fetchBabyDetail(babyId, requestOptions)
     },
     goToday() {
       uni.switchTab({
