@@ -98,7 +98,7 @@ export default {
   min-height: 100vh;
   flex-direction: column;
   justify-content: center;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .login-card {
@@ -119,18 +119,18 @@ export default {
   margin-bottom: 28rpx;
   border-radius: 50%;
   background: #fff1df;
-  color: #f6b84b;
+  color: #f28c38;
   font-size: 38rpx;
   font-weight: 600;
 }
 
 .page-title {
-  color: #2f2f2f;
+  color: #1f2329;
 }
 
 .login-note {
   margin-top: 18rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 26rpx;
   line-height: 1.6;
 }
@@ -138,15 +138,15 @@ export default {
 .login-action {
   width: 100%;
   border-radius: 999rpx;
-  background: #f6b84b;
+  background: #f28c38;
 }
 
 .dev-login-action {
   width: 100%;
   margin-top: 20rpx;
   border-radius: 999rpx;
-  color: #d58b4d;
-  background: #fff3ce;
+  color: #c96a16;
+  background: #fff5ec;
   font-size: 28rpx;
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <view class="record-page">
     <view class="record-hero">
-      <view class="baby-pill">{{ currentBabyId ? '当前宝宝已选择' : '未选择宝宝' }}</view>
+      <view class="baby-pill">{{ babyPillText }}</view>
       <view class="record-title">记录</view>
       <view class="record-desc">按当前宝宝记录今日照护，保存后会同步到今日汇总。</view>
     </view>
@@ -44,7 +44,7 @@
     <view class="section-card">
       <view class="section-header">
         <view class="section-title">今日时间轴</view>
-        <view class="section-more">{{ records.length ? `${records.length}条` : '暂无记录' }}</view>
+        <view class="section-more">{{ timelineCountText }}</view>
       </view>
       <view v-if="loading" class="timeline-empty">
         <view class="empty-dot"></view>
@@ -61,7 +61,7 @@
           <button class="soft-action retry-action" @click="loadRecords">重新加载</button>
         </view>
       </view>
-      <view v-else-if="records.length === 0" class="timeline-empty">
+      <view v-else-if="noRecords" class="timeline-empty">
         <view class="empty-dot"></view>
         <view>
           <view class="empty-title">暂无护理记录</view>
@@ -70,10 +70,13 @@
       </view>
       <view v-else class="record-list">
         <view v-for="record in records" :key="record.recordId" class="record-row">
-          <view class="record-time">{{ record.displayTime }}</view>
-          <view class="record-main">
-            <view class="record-name">{{ record.recordTypeLabel }}</view>
-            <view class="record-remark">{{ record.displayRemark }}</view>
+          <view class="record-node"></view>
+          <view class="record-content">
+            <view class="record-time">{{ record.displayTime }}</view>
+            <view class="record-main">
+              <view class="record-name">{{ record.recordTypeLabel }}</view>
+              <view class="record-remark">{{ record.displayRemark }}</view>
+            </view>
           </view>
         </view>
       </view>
@@ -105,6 +108,7 @@ import {
   getRecordListTypeCountText,
   getTodayDateString
 } from '../../services/careRecordService'
+import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
 
@@ -127,16 +131,33 @@ export default {
   computed: {
     voiceEntryDesc() {
       return this.mockVoiceEnabled ? '说一句照护备注，确认后保存到记录。' : '语音输入暂未开放，可先手动记录。'
+    },
+    babyPillText() {
+      return this.currentBabyId ? '当前宝宝已选择' : '未选择宝宝'
+    },
+    timelineCountText() {
+      return this.records.length ? `${this.records.length}条` : '暂无记录'
+    },
+    noRecords() {
+      return this.records.length === 0
     }
   },
-  onShow() {
+  async onShow() {
     this.currentBabyId = getCurrentBabyId()
     if (!this.currentBabyId) {
       this.records = []
-      uni.switchTab({
-        url: '/pages/baby/index'
-      })
-      return
+      try {
+        const result = await ensureCurrentBabyId()
+        if (!result.hasBaby) {
+          this.goCreate()
+          return
+        }
+        this.currentBabyId = result.babyId
+      } catch (error) {
+        this.loadErrorText = getErrorMessage(error)
+        this.loadError = true
+        return
+      }
     }
     this.loadRecords()
   },
@@ -192,6 +213,11 @@ export default {
       uni.navigateTo({
         url: '/pages/record/voice'
       })
+    },
+    goCreate() {
+      uni.navigateTo({
+        url: '/pages/baby/create'
+      })
     }
   }
 }
@@ -202,7 +228,7 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 34rpx 28rpx 180rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .record-hero {
@@ -213,21 +239,22 @@ export default {
   display: inline-flex;
   padding: 8rpx 18rpx;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  border: 1rpx solid #f3d8bf;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 22rpx;
 }
 
 .record-title {
   margin-top: 18rpx;
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .record-desc {
   margin-top: 8rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -239,11 +266,11 @@ export default {
   padding: 26rpx 24rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
 }
 
 .section-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 30rpx;
   font-weight: 700;
 }
@@ -259,8 +286,9 @@ export default {
 .summary-item {
   min-height: 132rpx;
   padding: 18rpx 10rpx;
+  border: 1rpx solid #eceff3;
   border-radius: 18rpx;
-  background: #fffaf2;
+  background: #f8f9fb;
   text-align: center;
 }
 
@@ -277,8 +305,8 @@ export default {
 }
 
 .feeding .summary-icon {
-  background: #fff4cf;
-  color: #d89c00;
+  background: #fff5ec;
+  color: #c96a16;
 }
 
 .sleep .summary-icon {
@@ -297,20 +325,27 @@ export default {
 }
 
 .summary-label {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 25rpx;
   font-weight: 700;
 }
 
 .summary-value {
   margin-top: 8rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 22rpx;
 }
 
 .voice-card {
   display: flex;
   align-items: center;
+  border: 1rpx solid #eceff3;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.voice-card:active {
+  background: #fff8f2;
+  transform: scale(0.99);
 }
 
 .voice-mark {
@@ -322,8 +357,8 @@ export default {
   height: 76rpx;
   margin-right: 18rpx;
   border-radius: 50%;
-  background: #fff3ce;
-  color: #e1ad16;
+  background: #fff5ec;
+  color: #f28c38;
   font-size: 26rpx;
   font-weight: 700;
 }
@@ -335,7 +370,7 @@ export default {
 
 .voice-title,
 .empty-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -343,13 +378,13 @@ export default {
 .voice-desc,
 .empty-desc,
 .section-more {
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   line-height: 1.6;
 }
 
 .voice-action {
-  color: #d89c00;
+  color: #c96a16;
   font-size: 24rpx;
   white-space: nowrap;
 }
@@ -365,29 +400,62 @@ export default {
   align-items: flex-start;
   margin-top: 24rpx;
   padding: 24rpx;
+  border: 1rpx solid #eceff3;
   border-radius: 18rpx;
-  background: #fffaf2;
+  background: #f8f9fb;
 }
 
 .record-list {
+  position: relative;
   margin-top: 18rpx;
+  padding-left: 14rpx;
+}
+
+.record-list::before {
+  position: absolute;
+  top: 24rpx;
+  bottom: 24rpx;
+  left: 8rpx;
+  width: 2rpx;
+  border-radius: 999rpx;
+  background: #eceff3;
+  content: '';
 }
 
 .record-row {
+  position: relative;
   display: flex;
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid #f0e6d6;
+  padding: 18rpx 0 18rpx 18rpx;
 }
 
-.record-row:last-child {
+.record-node {
+  position: absolute;
+  top: 28rpx;
+  left: -11rpx;
+  width: 12rpx;
+  height: 12rpx;
+  border: 4rpx solid #ffffff;
+  border-radius: 50%;
+  background: #f28c38;
+}
+
+.record-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #eceff3;
+}
+
+.record-row:last-child .record-content {
   border-bottom: 0;
 }
 
 .record-time {
   flex-shrink: 0;
-  width: 92rpx;
-  color: #a8a8a8;
-  font-size: 23rpx;
+  width: 90rpx;
+  color: #9aa1aa;
+  font-size: 22rpx;
 }
 
 .record-main {
@@ -396,14 +464,14 @@ export default {
 }
 
 .record-name {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 26rpx;
   font-weight: 700;
 }
 
 .record-remark {
   margin-top: 6rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 23rpx;
   line-height: 1.5;
 }
@@ -414,16 +482,25 @@ export default {
   height: 18rpx;
   margin: 10rpx 18rpx 0 0;
   border-radius: 50%;
-  background: #f6b84b;
+  background: #f28c38;
 }
 
 .quick-item {
   padding: 24rpx 12rpx;
+  border: 1rpx solid #eceff3;
   border-radius: 18rpx;
-  background: #fffaf2;
-  color: #2f2f2f;
+  background: #ffffff;
+  color: #1f2329;
   font-size: 25rpx;
   text-align: center;
+  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.04);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.quick-item:active {
+  border-color: #f3d8bf;
+  background: #fff8f2;
+  transform: scale(0.98);
 }
 
 .quick-item.disabled {
@@ -432,8 +509,8 @@ export default {
 
 .retry-action {
   margin-top: 16rpx;
-  color: #d58b4d;
-  background: #fff3ce;
+  color: #c96a16;
+  background: #fff5ec;
   border-radius: 999rpx;
 }
 </style>

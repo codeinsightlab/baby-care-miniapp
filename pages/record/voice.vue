@@ -23,7 +23,7 @@
       <view v-if="mockVoiceEnabled" class="mock-actions">
         <button class="soft-action" :disabled="recognizing" @click="handleMockFail">手动填写</button>
         <button class="primary-action" :disabled="recognizing || !currentBabyId" @click="handleMockSuccess">
-          {{ recognizing ? '识别中' : '开始识别' }}
+          {{ recognizeButtonText }}
         </button>
       </view>
       <view v-else class="unavailable-actions">
@@ -59,6 +59,9 @@ export default {
     },
     canConfirm() {
       return !!(this.voiceRecord && this.voiceRecord.voiceRecordId)
+    },
+    recognizeButtonText() {
+      return this.recognizing ? '识别中' : '开始识别'
     },
     statusTitle() {
       if (!this.currentBabyId) {
@@ -154,7 +157,7 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .voice-header {
@@ -162,14 +165,14 @@ export default {
 }
 
 .page-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin-top: 10rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 25rpx;
   line-height: 1.6;
 }
@@ -179,12 +182,12 @@ export default {
   padding: 56rpx 32rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
   text-align: center;
 }
 
 .recording-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 32rpx;
   font-weight: 700;
 }
@@ -201,7 +204,7 @@ export default {
   height: 72rpx;
   margin: 0 8rpx;
   border-radius: 999rpx;
-  background: #f0e6d6;
+  background: #eceff3;
 }
 
 .bar.short {
@@ -213,7 +216,7 @@ export default {
 }
 
 .wave.active .bar {
-  background: #f6b84b;
+  background: #f28c38;
 }
 
 .recognized-card {
@@ -225,7 +228,7 @@ export default {
 }
 
 .recognized-label {
-  color: #d89c00;
+  color: #c96a16;
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -233,7 +236,7 @@ export default {
 .recognized-text {
   min-height: 88rpx;
   margin-top: 10rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 25rpx;
   line-height: 1.6;
 }
@@ -264,12 +267,12 @@ export default {
 }
 
 .soft-action {
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
   color: #ffffff;
 }
 

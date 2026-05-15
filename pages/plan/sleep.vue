@@ -12,7 +12,7 @@
     <view class="section-card">
       <view class="section-title">参考睡眠观察节点</view>
       <view v-if="loading" class="empty-desc">正在加载模板...</view>
-      <view v-else-if="templates.length === 0" class="empty-desc">暂无可用模板。</view>
+      <view v-else-if="noTemplates" class="empty-desc">暂无可用模板。</view>
       <view class="node-row" v-for="item in templates" :key="item.templateId">
         <view>
           <view>{{ item.templateName }}</view>
@@ -42,6 +42,11 @@ export default {
       submitting: false,
       currentBabyId: '',
       templates: []
+    }
+  },
+  computed: {
+    noTemplates() {
+      return this.templates.length === 0
     }
   },
   onShow() {
@@ -95,18 +100,18 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .page-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin: 12rpx 0 28rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -116,12 +121,12 @@ export default {
   padding: 26rpx 24rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
 }
 
 .section-title {
   margin-bottom: 18rpx;
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 29rpx;
   font-weight: 700;
 }
@@ -129,14 +134,14 @@ export default {
 .option-item {
   margin-bottom: 12rpx;
   padding: 22rpx 24rpx;
-  border: 1rpx solid #f0e6d6;
+  border: 1rpx solid #eceff3;
   border-radius: 18rpx;
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 26rpx;
 }
 
 .option-item.active {
-  border-color: #ffd166;
+  border-color: #f28c38;
   background: #f2e7ff;
   color: #8d6bd1;
 }
@@ -146,14 +151,14 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #f0e6d6;
-  color: #2f2f2f;
+  border-bottom: 1rpx solid #eceff3;
+  color: #1f2329;
   font-size: 25rpx;
 }
 
 .node-desc {
   margin-top: 6rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 22rpx;
   line-height: 1.4;
 }
@@ -169,9 +174,9 @@ export default {
 .add-node {
   margin-top: 18rpx;
   padding: 20rpx;
-  border: 1rpx dashed #f0e6d6;
+  border: 1rpx dashed #eceff3;
   border-radius: 18rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   text-align: center;
 }
@@ -196,12 +201,12 @@ export default {
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
   color: #ffffff;
 }
 
 .soft-action {
   background: #ffffff;
-  color: #7a7a7a;
+  color: #69707a;
 }
 </style>

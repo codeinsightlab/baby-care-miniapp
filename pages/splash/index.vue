@@ -16,6 +16,7 @@
 </template>
 
 <script>
+import { ensureCurrentBabyId } from '../../services/babyService'
 import { ensureSilentLogin } from '../../services/loginService'
 import { getToken } from '../../utils/auth'
 import { getCurrentBabyId } from '../../utils/currentBaby'
@@ -37,7 +38,7 @@ export default {
         if (!getToken()) {
           await this.loginSilently()
         }
-        this.restoreEntry()
+        await this.restoreCurrentBaby()
       } catch (error) {
         if (isServerUnavailableError(error)) {
           this.restoreEntry()
@@ -49,6 +50,14 @@ export default {
     async loginSilently() {
       this.statusText = '正在进入宝宝空间...'
       await ensureSilentLogin()
+    },
+    async restoreCurrentBaby() {
+      const result = await ensureCurrentBabyId()
+      if (result.hasBaby) {
+        this.goToday()
+        return
+      }
+      this.goCreate()
     },
     restoreEntry() {
       if (getCurrentBabyId()) {
@@ -65,6 +74,11 @@ export default {
     goBabyList() {
       uni.switchTab({
         url: '/pages/baby/index'
+      })
+    },
+    goCreate() {
+      uni.navigateTo({
+        url: '/pages/baby/create'
       })
     },
     goLogin(error) {
@@ -85,7 +99,7 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 72rpx 48rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .splash-main {
@@ -104,7 +118,7 @@ export default {
   height: 260rpx;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 20rpx 54rpx rgba(159, 135, 72, 0.12);
+  box-shadow: 0 20rpx 54rpx rgba(31, 35, 41, 0.06);
 }
 
 .splash-image {
@@ -114,7 +128,7 @@ export default {
 
 .splash-title {
   margin-top: 44rpx;
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 44rpx;
   font-weight: 600;
   line-height: 1.3;
@@ -122,7 +136,7 @@ export default {
 
 .splash-tip {
   margin-top: 18rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 28rpx;
   line-height: 1.6;
 }
@@ -137,7 +151,7 @@ export default {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #f6b84b;
+  background: #f28c38;
   animation: dotPulse 1.2s ease-in-out infinite;
 }
 

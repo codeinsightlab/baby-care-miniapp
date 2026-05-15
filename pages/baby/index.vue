@@ -13,7 +13,7 @@
       <button class="page-action soft-action" @click="loadBabies">重新加载</button>
     </view>
 
-    <view v-else-if="babies.length === 0" class="empty-state">
+    <view v-else-if="noBabies" class="empty-state">
       <view class="empty-title">还没有宝宝档案</view>
       <view class="empty-desc">新增宝宝后，就可以进入今日页面。</view>
       <button class="page-action primary-action" type="primary" @click="goCreate">新增宝宝</button>
@@ -25,7 +25,7 @@
         v-for="baby in babies"
         :key="baby.babyId"
         class="baby-item"
-        :class="{ active: String(baby.babyId) === String(currentBabyId) }"
+        :class="{ active: baby.isCurrent }"
         @click="selectBaby(baby)"
       >
         <view class="baby-avatar">{{ baby.initial }}</view>
@@ -33,7 +33,7 @@
           <view class="baby-name">{{ baby.nickname || '未命名宝宝' }}</view>
           <view class="baby-meta">{{ baby.genderText }} · {{ baby.birthday || '出生日期未设置' }}</view>
         </view>
-        <view class="baby-status">{{ String(baby.babyId) === String(currentBabyId) ? '当前宝宝' : '选择' }}</view>
+        <view class="baby-status">{{ baby.statusText }}</view>
       </view>
 
       <button class="page-action soft-action" @click="goCreate">新增宝宝</button>
@@ -47,6 +47,17 @@ import { fetchBabyList } from '../../services/babyService'
 import { getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError } from '../../utils/errorClassifier'
 
+function buildBabyViewModels(babies, currentBabyId) {
+  return (Array.isArray(babies) ? babies : []).map(baby => {
+    const isCurrent = String(baby.babyId) === String(currentBabyId)
+    return {
+      ...baby,
+      isCurrent,
+      statusText: isCurrent ? '当前宝宝' : '选择'
+    }
+  })
+}
+
 export default {
   name: 'BabyPage',
   data() {
@@ -58,6 +69,11 @@ export default {
       currentBabyId: ''
     }
   },
+  computed: {
+    noBabies() {
+      return this.babies.length === 0
+    }
+  },
   onShow() {
     this.currentBabyId = getCurrentBabyId()
     this.loadBabies()
@@ -67,7 +83,12 @@ export default {
       this.loading = true
       this.loadError = false
       try {
-        this.babies = await fetchBabyList()
+        const babies = await fetchBabyList()
+        if (!this.currentBabyId && babies.length > 0) {
+          this.currentBabyId = babies[0].babyId
+          setCurrentBabyId(this.currentBabyId)
+        }
+        this.babies = buildBabyViewModels(babies, this.currentBabyId)
       } catch (error) {
         if (isUnauthorizedError(error)) {
           return
@@ -106,7 +127,7 @@ export default {
 .baby-page {
   min-height: 100vh;
   padding: 42rpx 28rpx 180rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .baby-header {
@@ -118,20 +139,20 @@ export default {
   padding: 32rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 28rpx;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
 }
 
 .empty-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 32rpx;
   font-weight: 600;
 }
 
 .empty-desc {
   margin-top: 12rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 26rpx;
   line-height: 1.6;
 }
@@ -146,15 +167,22 @@ export default {
   box-sizing: border-box;
   margin-bottom: 20rpx;
   padding: 26rpx 24rpx;
-  border: 2rpx solid transparent;
+  border: 1rpx solid #eceff3;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(159, 135, 72, 0.07);
+  box-shadow: 0 8rpx 22rpx rgba(31, 35, 41, 0.05);
+  transition: transform 0.12s ease, background-color 0.12s ease;
 }
 
 .baby-item.active {
-  border-color: #ffd166;
-  background: #fffdf8;
+  border: 2rpx solid #f28c38;
+  background: #fff8f2;
+  box-shadow: 0 10rpx 24rpx rgba(242, 140, 56, 0.1);
+}
+
+.baby-item:active {
+  background: #fff8f2;
+  transform: scale(0.99);
 }
 
 .baby-avatar {
@@ -166,8 +194,8 @@ export default {
   height: 72rpx;
   margin-right: 20rpx;
   border-radius: 50%;
-  background: #fff1df;
-  color: #f6b84b;
+  background: #fff5ec;
+  color: #f28c38;
   font-size: 30rpx;
   font-weight: 600;
 }
@@ -178,23 +206,24 @@ export default {
 }
 
 .baby-name {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 32rpx;
   font-weight: 600;
 }
 
 .baby-meta {
   margin-top: 8rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 26rpx;
 }
 
 .baby-status {
   margin-left: 20rpx;
   padding: 8rpx 18rpx;
+  border: 1rpx solid #f3d8bf;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 25rpx;
   white-space: nowrap;
 }
@@ -205,11 +234,17 @@ export default {
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
+  color: #ffffff;
 }
 
 .soft-action {
-  color: #d58b4d;
-  background: #fff3ce;
+  border: 1rpx solid #f3d8bf;
+  color: #c96a16;
+  background: #fff5ec;
+}
+
+.page-action:active {
+  opacity: 0.82;
 }
 </style>

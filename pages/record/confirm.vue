@@ -35,7 +35,7 @@
     <view class="footer-actions">
       <button class="soft-action" @click="goVoice">重说一次</button>
       <button class="primary-action" :disabled="submitting || !canSubmit" @click="saveRecord">
-        {{ submitting ? '保存中' : '保存记录' }}
+        {{ submitButtonText }}
       </button>
     </view>
   </view>
@@ -68,6 +68,9 @@ export default {
   computed: {
     canSubmit() {
       return !!(this.currentBabyId && this.selectedRecordType && this.remark.trim())
+    },
+    submitButtonText() {
+      return this.submitting ? '保存中' : '保存记录'
     },
     statusText() {
       if (!this.voiceRecordId) {
@@ -160,18 +163,18 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .page-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin-top: 10rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 25rpx;
   line-height: 1.6;
 }
@@ -181,11 +184,11 @@ export default {
   padding: 34rpx 28rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
 }
 
 .status-line {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 31rpx;
   font-weight: 700;
   text-align: center;
@@ -196,7 +199,7 @@ export default {
 }
 
 .field-label {
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 25rpx;
   font-weight: 700;
 }
@@ -211,15 +214,15 @@ export default {
 .type-chip {
   height: 76rpx;
   border-radius: 18rpx;
-  background: #fffaf2;
-  color: #2f2f2f;
+  background: #f8f9fb;
+  color: #1f2329;
   font-size: 26rpx;
   line-height: 76rpx;
   text-align: center;
 }
 
 .type-chip.active {
-  background: #f6b84b;
+  background: #f28c38;
   color: #ffffff;
   font-weight: 700;
 }
@@ -231,8 +234,8 @@ export default {
   margin-top: 18rpx;
   padding: 22rpx;
   border-radius: 16rpx;
-  background: #fffaf2;
-  color: #2f2f2f;
+  background: #f8f9fb;
+  color: #1f2329;
   font-size: 27rpx;
   line-height: 1.6;
 }
@@ -257,12 +260,12 @@ export default {
 }
 
 .soft-action {
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
   color: #ffffff;
 }
 

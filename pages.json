@@ -40,7 +40,7 @@
     {
       "path": "pages/baby/create",
       "style": {
-        "navigationBarTitleText": "创建宝宝"
+        "navigationBarTitleText": "宝宝信息"
       }
     },
     {
@@ -95,37 +95,37 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "宝宝护理",
-    "navigationBarBackgroundColor": "#FFF8EE",
-    "backgroundColor": "#FFF8EE"
+    "navigationBarBackgroundColor": "#f7f6f2",
+    "backgroundColor": "#f7f6f2"
   },
   "tabBar": {
-    "color": "#97A39A",
-    "selectedColor": "#F6B84B",
-    "backgroundColor": "#FFFDF8",
+    "color": "#8f98a3",
+    "selectedColor": "#f28c38",
+    "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/today/index",
-        "iconPath": "static/tabbar/today.svg",
-        "selectedIconPath": "static/tabbar/today-active.svg",
+        "iconPath": "static/tabbar/today.png",
+        "selectedIconPath": "static/tabbar/today-active.png",
         "text": "今日"
       },
       {
         "pagePath": "pages/record/index",
-        "iconPath": "static/tabbar/record.svg",
-        "selectedIconPath": "static/tabbar/record-active.svg",
+        "iconPath": "static/tabbar/record.png",
+        "selectedIconPath": "static/tabbar/record-active.png",
         "text": "记录"
       },
       {
         "pagePath": "pages/reminder/index",
-        "iconPath": "static/tabbar/reminder.svg",
-        "selectedIconPath": "static/tabbar/reminder-active.svg",
+        "iconPath": "static/tabbar/reminder.png",
+        "selectedIconPath": "static/tabbar/reminder-active.png",
         "text": "提醒"
       },
       {
         "pagePath": "pages/baby/index",
-        "iconPath": "static/tabbar/baby.svg",
-        "selectedIconPath": "static/tabbar/baby-active.svg",
+        "iconPath": "static/tabbar/baby.png",
+        "selectedIconPath": "static/tabbar/baby-active.png",
         "text": "宝宝"
       }
     ]

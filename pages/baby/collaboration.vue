@@ -45,13 +45,13 @@
 
       <view class="section-card">
         <view class="section-title">已加入的照顾人</view>
-        <view v-if="collaborators.length === 0" class="state-desc">还没有照顾人加入。</view>
+        <view v-if="noCollaborators" class="state-desc">还没有照顾人加入。</view>
         <view v-else class="collaborator-list">
           <view v-for="item in collaborators" :key="item.collaboratorId" class="collaborator-row">
-            <view class="collaborator-avatar">{{ item.collaboratorName.slice(0, 1) }}</view>
+            <view class="collaborator-avatar">{{ item.avatarText }}</view>
             <view class="collaborator-main">
               <view class="collaborator-name">{{ item.collaboratorName }}</view>
-              <view class="state-desc">{{ item.collaboratorRoleText }}{{ item.joinedAt ? ` · ${item.joinedAt}` : '' }}</view>
+              <view class="state-desc">{{ item.roleJoinedText }}</view>
             </view>
           </view>
         </view>
@@ -74,6 +74,18 @@ function isUnauthorizedError(error) {
   return error && (error.unauthorized || error.statusCode === 401 || error.code === 401 || error.code === '401')
 }
 
+function buildCollaboratorViewModels(collaborators) {
+  return (Array.isArray(collaborators) ? collaborators : []).map(item => {
+    const collaboratorName = item.collaboratorName || ''
+    const collaboratorRoleText = item.collaboratorRoleText || ''
+    return {
+      ...item,
+      avatarText: String(collaboratorName).slice(0, 1),
+      roleJoinedText: item.joinedAt ? `${collaboratorRoleText} · ${item.joinedAt}` : collaboratorRoleText
+    }
+  })
+}
+
 export default {
   name: 'BabyCollaborationPage',
   data() {
@@ -86,6 +98,11 @@ export default {
       collaborators: [],
       invite: {},
       inviteCodeInput: ''
+    }
+  },
+  computed: {
+    noCollaborators() {
+      return this.collaborators.length === 0
     }
   },
   onShow() {
@@ -101,7 +118,7 @@ export default {
         const current = await fetchCurrentCollaboration(this.currentBabyId)
         const collaborators = await fetchCollaboratorList(this.currentBabyId)
         this.collaboration = current
-        this.collaborators = collaborators
+        this.collaborators = buildCollaboratorViewModels(collaborators)
       } catch (error) {
         if (!isUnauthorizedError(error)) {
           uni.showToast({ title: error.msg || error.message || '加载失败', icon: 'none' })
@@ -161,7 +178,7 @@ export default {
 .collaboration-page {
   min-height: 100vh;
   padding: 42rpx 28rpx 100rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .collaboration-header {
@@ -174,26 +191,26 @@ export default {
   padding: 30rpx 28rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
 }
 
 .state-title,
 .section-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 31rpx;
   font-weight: 700;
 }
 
 .state-desc {
   margin-top: 10rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   line-height: 1.6;
 }
 
 .baby-name {
   margin-top: 16rpx;
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 34rpx;
   font-weight: 700;
 }
@@ -202,11 +219,11 @@ export default {
   margin-top: 20rpx;
   padding: 24rpx;
   border-radius: 18rpx;
-  background: #fffaf2;
+  background: #f8f9fb;
 }
 
 .invite-code {
-  color: #d58b4d;
+  color: #c96a16;
   font-size: 44rpx;
   font-weight: 800;
   letter-spacing: 0;
@@ -218,10 +235,10 @@ export default {
   height: 86rpx;
   margin-top: 20rpx;
   padding: 0 24rpx;
-  border: 1rpx solid #f0e6d6;
+  border: 1rpx solid #eceff3;
   border-radius: 18rpx;
-  background: #fffaf2;
-  color: #2f2f2f;
+  background: #f8f9fb;
+  color: #1f2329;
   font-size: 30rpx;
   line-height: 86rpx;
 }
@@ -234,7 +251,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #f0e6d6;
+  border-bottom: 1rpx solid #eceff3;
 }
 
 .collaborator-row:last-child {
@@ -250,8 +267,8 @@ export default {
   height: 64rpx;
   margin-right: 18rpx;
   border-radius: 50%;
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -262,7 +279,7 @@ export default {
 }
 
 .collaborator-name {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 29rpx;
   font-weight: 600;
 }
@@ -274,11 +291,11 @@ export default {
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
 }
 
 .soft-action {
-  color: #d58b4d;
-  background: #fff3ce;
+  color: #c96a16;
+  background: #fff5ec;
 }
 </style>

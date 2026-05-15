@@ -1,5 +1,6 @@
 import { createBaby, getBabyDetail, getBabyList } from '../api/baby'
 import { createFamily } from '../api/family'
+import { getCurrentBabyId, setCurrentBabyId } from '../utils/currentBaby'
 import { sanitizeVisibleText } from './textSanitizer'
 
 const genderTextMap = {
@@ -65,6 +66,35 @@ export async function fetchBabyList(requestOptions = {}) {
   const response = await getBabyList(requestOptions)
   const list = Array.isArray(response.data) ? response.data : []
   return list.map(toBabyViewModel).filter(Boolean)
+}
+
+export async function ensureCurrentBabyId(requestOptions = {}) {
+  const currentBabyId = getCurrentBabyId()
+  if (currentBabyId) {
+    return {
+      babyId: currentBabyId,
+      restored: false,
+      hasBaby: true
+    }
+  }
+
+  const babies = await fetchBabyList(requestOptions)
+  const firstBaby = babies[0]
+  if (!firstBaby || !firstBaby.babyId) {
+    return {
+      babyId: '',
+      restored: false,
+      hasBaby: false
+    }
+  }
+
+  setCurrentBabyId(firstBaby.babyId)
+  return {
+    babyId: firstBaby.babyId,
+    baby: firstBaby,
+    restored: true,
+    hasBaby: true
+  }
 }
 
 export async function fetchBabyDetail(babyId, requestOptions = {}) {

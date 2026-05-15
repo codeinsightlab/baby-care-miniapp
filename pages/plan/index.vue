@@ -22,7 +22,7 @@
           <view class="plan-time">建议时间：{{ group.displayTime }}</view>
         </view>
         <view class="plan-action" :class="{ 'muted-action': group.disabled }">
-          {{ group.disabled ? '待补充' : '去设置' }}
+          {{ group.actionText }}
         </view>
       </view>
     </view>
@@ -37,6 +37,13 @@
 <script>
 import { buildPlanGroups, fetchPlanTemplates } from '../../services/planService'
 import { requestReminderSubscribe } from '../../utils/subscribe'
+
+function buildPlanGroupViewModels(templates) {
+  return buildPlanGroups(templates).map(group => ({
+    ...group,
+    actionText: group.disabled ? '待补充' : '去设置'
+  }))
+}
 
 export default {
   name: 'PlanIndexPage',
@@ -55,10 +62,10 @@ export default {
       this.loading = true
       try {
         this.templates = await fetchPlanTemplates()
-        this.planGroups = buildPlanGroups(this.templates)
+        this.planGroups = buildPlanGroupViewModels(this.templates)
       } catch (error) {
         this.templates = []
-        this.planGroups = buildPlanGroups([])
+        this.planGroups = buildPlanGroupViewModels([])
       } finally {
         this.loading = false
       }
@@ -101,7 +108,7 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 42rpx 28rpx 80rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .plan-header {
@@ -109,7 +116,7 @@ export default {
 }
 
 .page-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 40rpx;
   font-weight: 700;
 }
@@ -119,14 +126,14 @@ export default {
   margin-top: 18rpx;
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 23rpx;
 }
 
 .page-desc {
   margin-top: 14rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -139,14 +146,14 @@ export default {
   padding: 28rpx 24rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
 }
 
 .state-card {
   padding: 28rpx 24rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 26rpx;
 }
 
@@ -155,14 +162,14 @@ export default {
 }
 
 .plan-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 30rpx;
   font-weight: 700;
 }
 
 .plan-desc {
   margin-top: 10rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
 }
 
@@ -177,15 +184,15 @@ export default {
   margin-left: 18rpx;
   padding: 12rpx 24rpx;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 24rpx;
   font-weight: 600;
 }
 
 .muted-action {
-  background: #fffaf2;
-  color: #a8a8a8;
+  background: #f8f9fb;
+  color: #9aa1aa;
 }
 
 .footer-actions {
@@ -208,12 +215,12 @@ export default {
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
   color: #ffffff;
 }
 
 .soft-action {
   background: #ffffff;
-  color: #7a7a7a;
+  color: #69707a;
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <view class="reminder-page">
     <view class="reminder-hero">
-      <view class="baby-pill">{{ currentBabyId ? '当前宝宝已选择' : '未选择宝宝' }}</view>
+      <view class="baby-pill">{{ babyPillText }}</view>
       <view class="page-title">提醒</view>
       <view class="page-desc">查看当前宝宝的个人提醒，完成或稍后都会同步记录。</view>
     </view>
@@ -38,8 +38,8 @@
         </view>
       </view>
       <view class="action-row" :class="{ triple: nextReminder }">
-        <button class="primary-action" @click="goPlan">照护计划</button>
-        <button v-if="nextReminder" class="soft-action" :disabled="submitting" @click="handleComplete(nextReminder)">完成</button>
+        <button class="soft-action plan-action" @click="goPlan">照护计划</button>
+        <button v-if="nextReminder" class="primary-action" :disabled="submitting" @click="handleComplete(nextReminder)">完成</button>
         <button class="soft-action" :disabled="!nextReminder || submitting" @click="handleSnooze(nextReminder)">稍后提醒</button>
       </view>
     </view>
@@ -51,9 +51,9 @@
           v-for="item in typeSummaries"
           :key="item.careType"
           class="type-card"
-          :class="item.careType.toLowerCase().replace('_', '-')"
+          :class="item.typeClass"
         >
-          <view class="type-icon">{{ item.label.slice(0, 1) }}</view>
+          <view class="type-icon">{{ item.typeIcon }}</view>
           <view class="type-title">{{ item.label }}提醒</view>
           <view class="type-desc">{{ item.countText }}</view>
         </view>
@@ -62,9 +62,14 @@
 
     <view class="section-card">
       <view class="section-title">提醒列表</view>
-      <view v-if="reminders.length === 0" class="empty-desc list-empty">暂无提醒节点。</view>
+      <view v-if="noReminders" class="empty-desc list-empty">暂无提醒节点。</view>
       <view v-else class="reminder-list">
-        <view v-for="item in reminders" :key="item.reminderNodeId" class="reminder-row">
+        <view
+          v-for="(item, index) in reminders"
+          :key="item.reminderNodeId"
+          class="reminder-row"
+          :class="{ faded: index > 0 }"
+        >
           <view>
             <view class="setting-title">{{ item.careTypeLabel }} · {{ item.displayTime }}</view>
             <view class="empty-desc">{{ item.statusLabel }} · {{ item.remark }}</view>
@@ -98,9 +103,22 @@ import {
   fetchTodayReminders,
   snoozeReminder
 } from '../../services/reminderService'
+import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
 import { requestReminderSubscribe } from '../../utils/subscribe'
+
+function normalizeCareTypeClass(careType) {
+  return String(careType || '').toLowerCase().replace(/_/g, '-')
+}
+
+function buildTypeSummaryViewModels(reminders) {
+  return buildReminderTypeSummaries(reminders).map(item => ({
+    ...item,
+    typeClass: normalizeCareTypeClass(item.careType),
+    typeIcon: String(item.label || '').slice(0, 1)
+  }))
+}
 
 export default {
   name: 'ReminderPage',
@@ -113,21 +131,38 @@ export default {
       submitting: false,
       todayReminders: [],
       reminders: [],
-      typeSummaries: buildReminderTypeSummaries([])
+      typeSummaries: buildTypeSummaryViewModels([])
     }
   },
   computed: {
     nextReminder() {
       return this.todayReminders[0] || null
+    },
+    babyPillText() {
+      return this.currentBabyId ? '当前宝宝已选择' : '未选择宝宝'
+    },
+    noReminders() {
+      return this.reminders.length === 0
     }
   },
-  onShow() {
+  async onShow() {
     this.currentBabyId = getCurrentBabyId()
     if (!this.currentBabyId) {
       this.todayReminders = []
       this.reminders = []
-      this.typeSummaries = buildReminderTypeSummaries([])
-      return
+      this.typeSummaries = buildTypeSummaryViewModels([])
+      try {
+        const result = await ensureCurrentBabyId()
+        if (!result.hasBaby) {
+          this.goCreate()
+          return
+        }
+        this.currentBabyId = result.babyId
+      } catch (error) {
+        this.loadErrorText = getErrorMessage(error)
+        this.loadError = true
+        return
+      }
     }
     this.loadReminders()
   },
@@ -140,11 +175,11 @@ export default {
         const list = await fetchReminderList(this.currentBabyId)
         this.todayReminders = today
         this.reminders = list
-        this.typeSummaries = buildReminderTypeSummaries(list)
+        this.typeSummaries = buildTypeSummaryViewModels(list)
       } catch (error) {
         this.todayReminders = []
         this.reminders = []
-        this.typeSummaries = buildReminderTypeSummaries([])
+        this.typeSummaries = buildTypeSummaryViewModels([])
         this.loadErrorText = getErrorMessage(error)
         this.loadError = true
       } finally {
@@ -154,6 +189,11 @@ export default {
     goPlan() {
       uni.navigateTo({
         url: '/pages/plan/index'
+      })
+    },
+    goCreate() {
+      uni.navigateTo({
+        url: '/pages/baby/create'
       })
     },
     async handleComplete(reminder) {
@@ -218,7 +258,7 @@ export default {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 34rpx 28rpx 180rpx;
-  background: #fff8ee;
+  background: #f7f6f2;
 }
 
 .reminder-hero {
@@ -229,21 +269,22 @@ export default {
   display: inline-flex;
   padding: 8rpx 18rpx;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  border: 1rpx solid #f3d8bf;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 22rpx;
 }
 
 .page-title {
   margin-top: 18rpx;
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 40rpx;
   font-weight: 700;
 }
 
 .page-desc {
   margin-top: 8rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -253,11 +294,16 @@ export default {
   padding: 26rpx 24rpx;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(159, 135, 72, 0.08);
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
+}
+
+.next-card {
+  border: 1rpx solid #f3d8bf;
+  box-shadow: 0 12rpx 28rpx rgba(242, 140, 56, 0.08);
 }
 
 .section-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 30rpx;
   font-weight: 700;
 }
@@ -267,14 +313,15 @@ export default {
   align-items: center;
   margin-top: 24rpx;
   padding: 24rpx;
-  border-radius: 16rpx;
-  background: #fffaf2;
+  border: 1rpx solid #eceff3;
+  border-radius: 18rpx;
+  background: #f8f9fb;
 }
 
 .retry-action {
   margin-top: 16rpx;
-  color: #d58b4d;
-  background: #fff3ce;
+  color: #c96a16;
+  background: #fff5ec;
   border-radius: 999rpx;
 }
 
@@ -287,8 +334,8 @@ export default {
   height: 78rpx;
   margin-right: 18rpx;
   border-radius: 50%;
-  background: #fff1df;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #f28c38;
   font-size: 26rpx;
   font-weight: 700;
 }
@@ -296,15 +343,19 @@ export default {
 .empty-title,
 .type-title,
 .setting-title {
-  color: #2f2f2f;
+  color: #1f2329;
   font-size: 27rpx;
   font-weight: 700;
+}
+
+.next-card .empty-title {
+  font-size: 31rpx;
 }
 
 .empty-desc,
 .type-desc {
   margin-top: 8rpx;
-  color: #7a7a7a;
+  color: #69707a;
   font-size: 23rpx;
   line-height: 1.5;
 }
@@ -336,13 +387,20 @@ export default {
 }
 
 .primary-action {
-  background: #f6b84b;
+  background: #f28c38;
   color: #ffffff;
+  box-shadow: 0 8rpx 18rpx rgba(242, 140, 56, 0.18);
 }
 
 .soft-action {
-  background: #fff3ce;
-  color: #d58b4d;
+  border: 1rpx solid #f3d8bf;
+  background: #fff5ec;
+  color: #c96a16;
+}
+
+.plan-action {
+  border-color: #eceff3;
+  background: #ffffff;
 }
 
 .reminder-grid {
@@ -357,8 +415,17 @@ export default {
   min-width: 0;
   min-height: 150rpx;
   padding: 22rpx 16rpx;
+  border: 1rpx solid #eceff3;
   border-radius: 18rpx;
-  background: #fffaf2;
+  background: #ffffff;
+  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.04);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.type-card:active {
+  border-color: #f3d8bf;
+  background: #fff8f2;
+  transform: scale(0.98);
 }
 
 .type-icon {
@@ -374,8 +441,8 @@ export default {
 }
 
 .feeding .type-icon {
-  background: #fff4cf;
-  color: #d89c00;
+  background: #fff5ec;
+  color: #c96a16;
 }
 
 .sleep .type-icon {
@@ -412,7 +479,11 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #f0e6d6;
+  border-bottom: 1rpx solid #eceff3;
+}
+
+.reminder-row.faded .setting-title {
+  font-weight: 600;
 }
 
 .reminder-row > view:first-child {
@@ -434,16 +505,18 @@ export default {
 .mini-action {
   box-sizing: border-box;
   padding: 8rpx 16rpx;
+  border: 1rpx solid #f3d8bf;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 22rpx;
   line-height: 1.5;
 }
 
 .soft-mini {
-  background: #fffaf2;
-  color: #7a7a7a;
+  border-color: #eceff3;
+  background: #ffffff;
+  color: #69707a;
 }
 
 .list-empty {
@@ -460,8 +533,9 @@ export default {
 .subscribe-action {
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: #fff3ce;
-  color: #d58b4d;
+  border: 1rpx solid #f3d8bf;
+  background: #fff5ec;
+  color: #c96a16;
   font-size: 23rpx;
   line-height: 1.5;
 }
