@@ -1,7 +1,31 @@
 # Changelog
 
+## 2026-05-16
+
+- 冻结 today 首页最终 IA：当前宝宝 -> Care Status -> 当前待执行 -> 今日时间轴 -> 今日统计 -> 快速记录；后续 UI 精修必须服从该骨架。
+- 明确 Care Status + 当前待执行为首页核心，timeline 承接“今天”，今日统计为辅助概览，快速记录为工具入口；本轮不修改 today 页面代码、不新增 section、不做 UI 精修。
+- 新增 Care Status 照护状态模型设计：用于表达“宝宝现在是什么状态”，只允许基于 record、plan、timeline event 和当前时间做简单可解释状态表达。
+- 明确 Care Status 不是 AI、健康分析、自动育儿建议或推荐系统；本轮不修改 today 页面代码、不改接口、不改 timeline、不新增复杂状态机或全局 store。
+- 冻结 today 首页整体节奏与信息流主线：当前待执行是“现在要照护什么”的首页中心，timeline 承接“今天发生了什么”，今日记录情况和快速记录降为辅助信息。
+- 本轮只同步产品体验层规则，不新增功能、接口、AI、健康分析、自动推断、全局 store 或复杂缓存系统，不修改 today 数据结构。
+
 ## 2026-05-15
 
+- 今日页“今日时间轴”冻结信息层级与展示策略：`RECORD` 作为 P0 主视觉，`PLAN_COMPLETED` 作为次级事件，`PLAN_DELAYED` 弱化为低焦虑调整事件，`SYSTEM_EVENT` 作为最弱辅助信息。
+- `services/timelineService.js` 新增 `visualPriority`、`itemClass`、`showDescription` 展示映射；页面继续逐条渲染 Timeline Event，不自动合并、不删除、不做 AI 摘要或语义压缩。
+- 今日页“今日时间轴”改为消费统一 Timeline Event view model，不再直接渲染 `care-record/today-summary` 的 `recentRecords`。
+- 新增 `api/timeline.js` 与 `services/timelineService.js`，调用 `GET /api/mini/timeline/today` 并按 `eventType` 映射时间轴图标、类型样式、标题和描述。
+- 完成 / 稍后提醒成功后，today 同步刷新今日待执行和今日时间轴，使计划完成 / 计划延后进入照护事件流；本轮不新增状态库、事件总线或复杂缓存系统。
+- 今日页建立最小可用刷新模型：由单一整页 `loading` 改为 `displayState + refreshingState`，当前宝宝、今日待执行、时间轴、今日统计分别显示局部“更新中”状态。
+- 刷新期间保留上一次成功显示数据，后台请求成功后按 section 替换；请求失败时不再清空今日统计、今日记录、今日待执行或销毁 swiper / timeline 容器，`activePendingIndex` 仅在新列表越界时修正。
+- 今日页“当前待执行”按最终反馈删除 preview 预览列表及其残留 computed / method / style，不再保留下方轻预览入口。
+- 删除 preview 后补强 swiper 主卡自身高度、内边距、底部闭合感和轻阴影，让当前任务卡独立承担完整视觉重心；swiper、dots、完成 / 稍后和业务逻辑不变。
+- 今日页“当前待执行”preview 做最后一级视觉减法收口：弱化预览条背景、边框感、按压反馈、字号和字重，使其仅作为后续待执行轻预览，不再像导航控制栏。
+- 本轮只调整 preview CSS 视觉层级，保留 preview 点击切换、swiper、header dots、card 状态和 CTA 结构不变，不新增交互或状态。
+- 今日页“当前待执行”完成 section / card 状态职责纠偏：header 仅保留标题与 swiper dots，`待执行` 恢复为 card 右上角的当前任务状态。
+- 本轮不再调整整体结构方向，不新增动画、状态源、交互或组件抽象；card 内仍禁止恢复 dots、数量、上一项 / 下一项等控制信息。
+- 今日页“当前待执行”完成 header / card 职责最终归位：将 section 状态 `待执行` 与 swiper dots 移入标题同行右侧，card 内不再承载 section 状态或分页状态。
+- 本轮只做信息层级归位，保持 swiper、preview、完成 / 稍后、空态和数据刷新逻辑不变，不新增动画、状态源、交互或组件抽象。
 - 今日页“当前待执行”做最后一轮视觉语义修正：在 swiper 主卡顶部右侧恢复轻量 `待执行` 任务状态文案，避免主卡只剩类型后更像普通记录。
 - 本轮保持 header dots 结构不动，不新增数量、箭头、动画、状态源或复杂交互；card 顶部形成“类型 + 待执行状态”的轻量任务语义。
 - 今日页“当前待执行”进入 P0 UI 减法收口：删除标题右侧重复的待执行数量表达和主卡右上角“待提醒”状态标签，让右上角仅保留 swiper 分页点承担当前位置提示。

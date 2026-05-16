@@ -1,11 +1,11 @@
 <template>
   <view class="page today-page">
-    <view v-if="loading" class="state-card">正在同步宝宝数据...</view>
+    <view v-if="pageInitializing && !hasDisplayState" class="state-card">正在同步宝宝数据...</view>
 
-    <view v-else-if="pageError" class="state-card">
+    <view v-else-if="pageError && !hasDisplayState" class="state-card">
       <view class="empty-title">同步失败</view>
       <view class="empty-desc">{{ pageError }}</view>
-      <button class="page-action soft-action" @click="loadCurrentBaby">重新加载</button>
+      <button class="page-action soft-action" @click="refreshTodayData">重新加载</button>
     </view>
 
     <view v-else-if="currentBaby">
@@ -15,13 +15,19 @@
           <view class="baby-name">{{ currentBaby.nickname || '未命名宝宝' }}</view>
           <view class="baby-stage">当前阶段：{{ currentBaby.ageText }}</view>
         </view>
-        <view class="switch-action" @click="goBabyList">切换宝宝</view>
+        <view class="baby-actions">
+          <view v-if="refreshingState.currentBaby" class="section-refreshing">更新中</view>
+          <view class="switch-action" @click="goBabyList">切换宝宝</view>
+        </view>
       </view>
 
       <view class="summary-card">
-        <view class="section-title">
-          <text class="section-icon">★</text>
-          <text>今日记录情况</text>
+        <view class="section-header">
+          <view class="section-title">
+            <text class="section-icon">★</text>
+            <text>今日记录情况</text>
+          </view>
+          <view v-if="refreshingState.summary" class="section-refreshing">更新中</view>
         </view>
         <view class="summary-grid">
           <view v-for="item in summaryItems" :key="item.recordType" class="summary-item">
@@ -45,16 +51,21 @@
             <text class="section-icon clock">○</text>
             <text>当前待执行</text>
           </view>
+          <view class="section-header-meta">
+            <view v-if="refreshingState.todayReminders" class="section-refreshing">更新中</view>
+            <view v-if="pendingIndicatorDots.length" class="pending-header-meta">
+              <view class="pending-indicator">
+                <view
+                  v-for="item in pendingIndicatorDots"
+                  :key="item.index"
+                  :class="item.className"
+                ></view>
+              </view>
+            </view>
+          </view>
         </view>
         <view v-if="noTodayReminders" class="empty-desc section-empty">暂无待执行提醒</view>
         <view v-else class="pending-stack">
-          <view v-if="pendingIndicatorDots.length" class="pending-indicator">
-            <view
-              v-for="item in pendingIndicatorDots"
-              :key="item.index"
-              :class="item.className"
-            ></view>
-          </view>
           <swiper
             class="pending-swiper"
             :current="activePendingIndex"
@@ -83,34 +94,27 @@
               </view>
             </swiper-item>
           </swiper>
-          <view class="pending-preview-list">
-            <view v-if="prevPendingItem" class="pending-preview-row" @click="selectPendingCard(prevPendingItem)">
-              <view class="pending-preview-time">{{ prevPendingItem.displayTime }}</view>
-              <view class="pending-preview-title">{{ prevPendingItem.careTypeLabel }} · {{ prevPendingItem.templateName }}</view>
-            </view>
-            <view v-if="nextPendingItem" class="pending-preview-row" @click="selectPendingCard(nextPendingItem)">
-              <view class="pending-preview-time">{{ nextPendingItem.displayTime }}</view>
-              <view class="pending-preview-title">{{ nextPendingItem.careTypeLabel }} · {{ nextPendingItem.templateName }}</view>
-            </view>
-          </view>
         </view>
       </view>
 
       <view class="section-card">
         <view class="section-header">
           <view class="section-title">今日时间轴</view>
-          <view class="section-more">{{ recentRecordCountText }}</view>
+          <view class="section-header-meta">
+            <view v-if="refreshingState.timeline" class="section-refreshing">更新中</view>
+            <view class="section-more">{{ timelineEventCountText }}</view>
+          </view>
         </view>
-        <view v-if="noRecentRecords" class="timeline-empty">今天还没有记录，完成一次照护后会在这里显示。</view>
+        <view v-if="noTimelineEvents" class="timeline-empty">今天还没有照护事件，完成记录或计划后会在这里显示。</view>
         <view v-else class="timeline-list">
-          <view v-for="record in timelineRecords" :key="record.recordId" class="timeline-item">
-            <view class="timeline-time">{{ record.displayTime }}</view>
+          <view v-for="event in timelineEvents" :key="event.id" class="timeline-item" :class="event.itemClass">
+            <view class="timeline-time">{{ event.displayTime }}</view>
             <view class="timeline-node">
-              <view class="timeline-dot" :class="record.typeClass">{{ record.iconText }}</view>
+              <view class="timeline-dot" :class="event.typeClass">{{ event.iconText }}</view>
             </view>
             <view class="timeline-main">
-              <view class="timeline-title">{{ record.recordTypeLabel }}</view>
-              <view class="timeline-remark">{{ record.displayRemark }}</view>
+              <view class="timeline-title">{{ event.title }}</view>
+              <view v-if="event.showDescription" class="timeline-remark">{{ event.description }}</view>
             </view>
           </view>
         </view>
@@ -134,33 +138,72 @@ import { ensureCurrentBabyId, fetchBabyDetail } from '../../services/babyService
 import { fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
 import { ensureSilentLogin } from '../../services/loginService'
 import { completeReminder, fetchTodayReminders, snoozeReminder } from '../../services/reminderService'
+import { fetchTodayTimelineEvents } from '../../services/timelineService'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError, shouldClearCurrentBabyId } from '../../utils/errorClassifier'
+
+function createTodayDisplayState() {
+  return {
+    currentBaby: null,
+    todaySummary: null,
+    recentRecords: [],
+    todayReminders: [],
+    timelineEvents: []
+  }
+}
+
+function createRefreshingState() {
+  return {
+    currentBaby: false,
+    todayReminders: false,
+    timeline: false,
+    summary: false
+  }
+}
 
 export default {
   name: 'TodayPage',
   data() {
     return {
-      loading: false,
+      pageInitializing: true,
       pageError: '',
       submitting: false,
       activePendingIndex: 0,
-      currentBaby: null,
-      todaySummary: null,
-      recentRecords: [],
-      todayReminders: []
+      displayState: createTodayDisplayState(),
+      refreshingState: createRefreshingState()
     }
   },
   computed: {
+    hasDisplayState() {
+      return Boolean(this.displayState.currentBaby)
+    },
+    currentBaby() {
+      return this.displayState.currentBaby
+    },
+    todaySummary() {
+      return this.displayState.todaySummary
+    },
+    recentRecords() {
+      return this.displayState.recentRecords
+    },
+    todayReminders() {
+      return this.displayState.todayReminders
+    },
+    timelineEvents() {
+      return this.displayState.timelineEvents
+    },
     babyInitial() {
       return this.currentBaby && this.currentBaby.initial ? this.currentBaby.initial : '宝'
     },
-    recentRecordCountText() {
-      return this.recentRecords.length ? `${this.recentRecords.length}条` : '今天还没有记录'
+    timelineEventCountText() {
+      return this.timelineEvents.length ? `${this.timelineEvents.length}个事件` : '今天还没有事件'
     },
     noRecentRecords() {
       return this.recentRecords.length === 0
+    },
+    noTimelineEvents() {
+      return this.timelineEvents.length === 0
     },
     noTodayReminders() {
       return this.pendingPreviewList.length === 0
@@ -182,24 +225,6 @@ export default {
         className: index === activeIndex ? 'pending-indicator-dot active' : 'pending-indicator-dot'
       }))
     },
-    prevPendingItem() {
-      const list = this.pendingPreviewList
-      const count = list.length
-      const activeIndex = this.getSafePendingIndex(count)
-      if (activeIndex < 1) {
-        return null
-      }
-      return this.buildPendingPreviewItem(list[activeIndex - 1], activeIndex - 1)
-    },
-    nextPendingItem() {
-      const list = this.pendingPreviewList
-      const count = list.length
-      const activeIndex = this.getSafePendingIndex(count)
-      if (activeIndex + 1 >= count) {
-        return null
-      }
-      return this.buildPendingPreviewItem(list[activeIndex + 1], activeIndex + 1)
-    },
     summaryItems() {
       return [
         this.buildSummaryItem('FEEDING', '喂奶', '奶', 'feeding'),
@@ -207,13 +232,6 @@ export default {
         this.buildSummaryItem('DIAPER', '大便', '便', 'diaper'),
         this.buildSummaryItem('BASIC_CARE', '小便', '尿', 'pee')
       ]
-    },
-    timelineRecords() {
-      return this.recentRecords.map((record) => ({
-        ...record,
-        iconText: this.getTimelineIcon(record.recordType),
-        typeClass: this.getTimelineClass(record.recordType)
-      }))
     },
     quickActions() {
       return [
@@ -225,86 +243,145 @@ export default {
     }
   },
   onShow() {
-    this.loadCurrentBaby()
+    this.refreshTodayData()
   },
   methods: {
-    async loadCurrentBaby() {
+    async refreshTodayData() {
+      const isFirstLoad = !this.hasDisplayState
+      this.pageInitializing = isFirstLoad
+      this.pageError = ''
+
       if (!getToken()) {
         try {
           await ensureSilentLogin()
         } catch (error) {
-          this.pageError = getErrorMessage(error, '进入失败，请稍后重试。')
+          this.handleRefreshFailure(error, '进入失败，请稍后重试。')
+          this.pageInitializing = false
           return
         }
       }
 
-      this.loading = true
-      this.pageError = ''
       let babyId = getCurrentBabyId()
       if (!babyId) {
         try {
           const result = await ensureCurrentBabyId()
           if (!result.hasBaby) {
+            this.pageInitializing = false
             this.goCreate()
             return
           }
           babyId = result.babyId
         } catch (error) {
-          this.pageError = getErrorMessage(error)
+          this.handleRefreshFailure(error)
+          this.pageInitializing = false
           return
-        } finally {
-          this.loading = false
         }
-        this.loading = true
       }
 
-      let baby = null
+      const baby = await this.refreshCurrentBaby(babyId)
+      if (!baby) {
+        this.pageInitializing = false
+        return
+      }
+
+      const results = await Promise.all([
+        this.refreshTodaySummary(baby.babyId),
+        this.refreshTodayReminders(baby.babyId),
+        this.refreshTodayTimeline(baby.babyId)
+      ])
+      if (results.includes(false) && this.hasDisplayState) {
+        uni.showToast({ title: '更新失败，仍显示上次数据', icon: 'none' })
+      }
+      this.pageInitializing = false
+    },
+    async refreshCurrentBaby(babyId) {
+      this.refreshingState.currentBaby = true
       try {
-        baby = await fetchBabyDetail(babyId)
-        this.currentBaby = baby
+        const baby = await fetchBabyDetail(babyId)
+        this.displayState = {
+          ...this.displayState,
+          currentBaby: baby
+        }
+        return baby
       } catch (error) {
-        this.todaySummary = null
-        this.recentRecords = []
-        this.todayReminders = []
         if (isUnauthorizedError(error)) {
-          return
+          return null
         }
         if (shouldClearCurrentBabyId(error)) {
-          this.currentBaby = null
           clearCurrentBabyId()
           this.goBabyList()
-          return
+          return null
         }
-        this.pageError = getErrorMessage(error)
-        return
+        this.handleRefreshFailure(error)
+        return null
       } finally {
-        this.loading = false
+        this.refreshingState.currentBaby = false
       }
-
-      this.loading = true
+    },
+    async refreshTodaySummary(babyId) {
+      this.refreshingState.summary = true
       try {
-        await this.loadTodaySummary(baby.babyId)
-        await this.loadTodayReminders(baby.babyId)
-      } catch (error) {
-        this.todaySummary = null
-        this.recentRecords = []
-        this.todayReminders = []
-        if (isUnauthorizedError(error)) {
-          return
+        const summary = await fetchTodaySummary(babyId)
+        this.displayState = {
+          ...this.displayState,
+          todaySummary: summary,
+          recentRecords: summary.recentRecords
         }
-        this.pageError = getErrorMessage(error)
+        return true
+      } catch (error) {
+        if (isUnauthorizedError(error)) {
+          return false
+        }
+        this.handleRefreshFailure(error)
+        return false
       } finally {
-        this.loading = false
+        this.refreshingState.summary = false
       }
     },
-    async loadTodaySummary(babyId) {
-      const summary = await fetchTodaySummary(babyId)
-      this.todaySummary = summary
-      this.recentRecords = summary.recentRecords
+    async refreshTodayTimeline(babyId) {
+      this.refreshingState.timeline = true
+      try {
+        const timelineEvents = await fetchTodayTimelineEvents(babyId)
+        this.displayState = {
+          ...this.displayState,
+          timelineEvents
+        }
+        return true
+      } catch (error) {
+        if (isUnauthorizedError(error)) {
+          return false
+        }
+        this.handleRefreshFailure(error)
+        return false
+      } finally {
+        this.refreshingState.timeline = false
+      }
     },
-    async loadTodayReminders(babyId) {
-      this.todayReminders = await fetchTodayReminders(babyId)
-      this.ensureActivePendingIndex()
+    async refreshTodayReminders(babyId) {
+      this.refreshingState.todayReminders = true
+      try {
+        const reminders = await fetchTodayReminders(babyId)
+        this.displayState = {
+          ...this.displayState,
+          todayReminders: reminders
+        }
+        this.ensureActivePendingIndex()
+        return true
+      } catch (error) {
+        if (isUnauthorizedError(error)) {
+          return false
+        }
+        this.handleRefreshFailure(error)
+        return false
+      } finally {
+        this.refreshingState.todayReminders = false
+      }
+    },
+    handleRefreshFailure(error, fallbackMessage) {
+      if (this.hasDisplayState) {
+        return
+      }
+      this.pageError = getErrorMessage(error, fallbackMessage)
     },
     isPendingReminder(reminder) {
       if (!reminder) {
@@ -323,26 +400,11 @@ export default {
         this.activePendingIndex = 0
       }
     },
-    buildPendingPreviewItem(reminder, originalIndex) {
-      if (!reminder) {
-        return null
-      }
-      return {
-        ...reminder,
-        originalIndex
-      }
-    },
     handlePendingSwiperChange(event) {
       const current = Number(event && event.detail ? event.detail.current : 0)
       if (!Number.isNaN(current)) {
         this.activePendingIndex = current
       }
-    },
-    selectPendingCard(item) {
-      if (!item) {
-        return
-      }
-      this.activePendingIndex = item.originalIndex
     },
     async handleComplete(reminder) {
       if (!reminder || this.submitting) {
@@ -352,7 +414,10 @@ export default {
       try {
         await completeReminder(reminder)
         uni.showToast({ title: '已完成', icon: 'success' })
-        await this.loadTodayReminders(reminder.babyId)
+        await Promise.all([
+          this.refreshTodayReminders(reminder.babyId),
+          this.refreshTodayTimeline(reminder.babyId)
+        ])
       } catch (error) {
         uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
       } finally {
@@ -367,7 +432,10 @@ export default {
       try {
         await snoozeReminder(reminder)
         uni.showToast({ title: '已稍后', icon: 'success' })
-        await this.loadTodayReminders(reminder.babyId)
+        await Promise.all([
+          this.refreshTodayReminders(reminder.babyId),
+          this.refreshTodayTimeline(reminder.babyId)
+        ])
       } catch (error) {
         uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
       } finally {
@@ -385,26 +453,6 @@ export default {
         typeClass,
         countText: this.getTypeCount(recordType)
       }
-    },
-    getTimelineIcon(recordType) {
-      const icons = {
-        FEEDING: '奶',
-        SLEEP: '眠',
-        DIAPER: '护',
-        BASIC_CARE: '护',
-        INTERACTION: '记'
-      }
-      return icons[recordType] || '记'
-    },
-    getTimelineClass(recordType) {
-      const classes = {
-        FEEDING: 'feeding',
-        SLEEP: 'sleep',
-        DIAPER: 'diaper',
-        BASIC_CARE: 'pee',
-        INTERACTION: 'note'
-      }
-      return classes[recordType] || 'note'
     },
     goBabyList() {
       uni.switchTab({
@@ -473,6 +521,24 @@ export default {
 .baby-main {
   flex: 1;
   min-width: 0;
+}
+
+.baby-actions,
+.section-header-meta {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 12rpx;
+  margin-left: 18rpx;
+}
+
+.section-refreshing {
+  flex-shrink: 0;
+  color: #c96a16;
+  font-size: 21rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .baby-name {
@@ -604,6 +670,26 @@ export default {
   color: #6a8ccf;
 }
 
+.record-event {
+  background: #edf3ff;
+  color: #6a8ccf;
+}
+
+.plan-completed {
+  background: #e8f7ec;
+  color: #62a66d;
+}
+
+.plan-delayed {
+  background: #f7f2ea;
+  color: #8a6f50;
+}
+
+.system-event {
+  background: #eef0f3;
+  color: transparent;
+}
+
 .voice-empty {
   display: flex;
   align-items: center;
@@ -660,26 +746,26 @@ export default {
 }
 
 .pending-swiper {
-  height: 318rpx;
+  height: 342rpx;
 }
 
 .pending-swiper-item {
   box-sizing: border-box;
-  padding: 0 2rpx 8rpx;
+  padding: 0 2rpx 10rpx;
 }
 
 .pending-main-card {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 226rpx;
+  min-height: 326rpx;
   box-sizing: border-box;
-  padding: 28rpx;
+  padding: 30rpx 28rpx 26rpx;
   border: 1rpx solid #f3d8bf;
   border-left: 8rpx solid #f28c38;
   border-radius: 24rpx;
-  background: #fff8f2;
-  box-shadow: 0 12rpx 26rpx rgba(242, 140, 56, 0.1);
+  background: #fff9f3;
+  box-shadow: 0 14rpx 30rpx rgba(242, 140, 56, 0.11);
 }
 
 .pending-card-top,
@@ -700,6 +786,12 @@ export default {
   font-weight: 600;
 }
 
+.pending-header-meta {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .pending-task-status {
   color: #b9855b;
   font-size: 21rpx;
@@ -709,7 +801,8 @@ export default {
 }
 
 .pending-card-body {
-  margin-top: 4rpx;
+  flex: 1;
+  margin-top: 6rpx;
 }
 
 .pending-time {
@@ -737,10 +830,6 @@ export default {
 }
 
 .pending-indicator {
-  position: absolute;
-  top: 70rpx;
-  right: 42rpx;
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: 7rpx;
@@ -795,46 +884,6 @@ export default {
   opacity: 0.55;
 }
 
-.pending-preview-list {
-  margin-top: 10rpx;
-}
-
-.pending-preview-row {
-  display: flex;
-  align-items: center;
-  min-height: 66rpx;
-  box-sizing: border-box;
-  margin-top: 10rpx;
-  padding: 0 22rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #ffffff;
-}
-
-.pending-preview-row:active {
-  border-color: #f3d8bf;
-  background: #fff8f2;
-}
-
-.pending-preview-time {
-  flex-shrink: 0;
-  margin-right: 18rpx;
-  color: #c96a16;
-  font-size: 25rpx;
-  font-weight: 700;
-}
-
-.pending-preview-title {
-  flex: 1;
-  min-width: 0;
-  color: #69707a;
-  font-size: 24rpx;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .section-header {
   justify-content: space-between;
 }
@@ -873,6 +922,22 @@ export default {
   padding: 18rpx 0;
 }
 
+.timeline-item-record {
+  padding: 20rpx 0;
+}
+
+.timeline-item-plan-completed {
+  padding: 15rpx 0;
+}
+
+.timeline-item-plan-delayed {
+  padding: 14rpx 0;
+}
+
+.timeline-item-system {
+  padding: 10rpx 0;
+}
+
 .timeline-time {
   flex-shrink: 0;
   width: 96rpx;
@@ -903,6 +968,52 @@ export default {
   box-shadow: 0 4rpx 12rpx rgba(31, 35, 41, 0.08);
 }
 
+.timeline-item-record .timeline-time {
+  color: #4f5d68;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.timeline-item-record .timeline-dot {
+  width: 56rpx;
+  height: 56rpx;
+  font-size: 21rpx;
+  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.1);
+}
+
+.timeline-item-plan-completed .timeline-time,
+.timeline-item-plan-delayed .timeline-time {
+  padding-top: 8rpx;
+  color: #8b929b;
+  font-size: 21rpx;
+  font-weight: 500;
+}
+
+.timeline-item-plan-completed .timeline-dot,
+.timeline-item-plan-delayed .timeline-dot {
+  width: 44rpx;
+  height: 44rpx;
+  border-width: 5rpx;
+  font-size: 17rpx;
+  box-shadow: none;
+}
+
+.timeline-item-system .timeline-time {
+  padding-top: 2rpx;
+  color: #b0b6bd;
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.timeline-item-system .timeline-dot {
+  width: 26rpx;
+  height: 26rpx;
+  margin-top: 4rpx;
+  border-width: 5rpx;
+  font-size: 0;
+  box-shadow: none;
+}
+
 .timeline-main {
   flex: 1;
   min-width: 0;
@@ -915,11 +1026,51 @@ export default {
   font-weight: 700;
 }
 
+.timeline-item-record .timeline-title {
+  font-size: 27rpx;
+  font-weight: 700;
+}
+
+.timeline-item-plan-completed .timeline-title {
+  color: #4f5d68;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.timeline-item-plan-delayed .timeline-title {
+  color: #6f6a62;
+  font-size: 23rpx;
+  font-weight: 500;
+}
+
+.timeline-item-system .timeline-main {
+  padding-top: 0;
+}
+
+.timeline-item-system .timeline-title {
+  color: #8b929b;
+  font-size: 21rpx;
+  font-weight: 500;
+}
+
 .timeline-remark {
   margin-top: 6rpx;
   color: #69707a;
   font-size: 22rpx;
   line-height: 1.5;
+}
+
+.timeline-item-record .timeline-remark {
+  color: #4f5d68;
+  font-size: 23rpx;
+}
+
+.timeline-item-plan-completed .timeline-remark,
+.timeline-item-plan-delayed .timeline-remark {
+  margin-top: 4rpx;
+  color: #8b929b;
+  font-size: 21rpx;
+  line-height: 1.45;
 }
 
 .quick-list {
