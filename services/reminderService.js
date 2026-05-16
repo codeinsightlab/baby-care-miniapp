@@ -1,9 +1,3 @@
-import {
-  completeReminderNode,
-  getReminderNodeList,
-  getTodayReminderNodes,
-  snoozeReminderNode
-} from '../api/reminder'
 import { sanitizeVisibleText } from './textSanitizer'
 
 const statusLabels = {
@@ -39,9 +33,9 @@ export function toReminderViewModel(raw) {
   }
   const status = raw.status || raw.todayStatus || 'PENDING'
   return {
-    reminderNodeId: raw.reminderNodeId,
+    reminderInstanceId: raw.reminderInstanceId,
     babyId: raw.babyId,
-    templateId: raw.templateId,
+    planTemplateId: raw.planTemplateId,
     templateName: sanitizeVisibleText(raw.templateName || '提醒'),
     careType: raw.careType,
     careTypeLabel: raw.careTypeLabel || careTypeLabels[raw.careType] || '提醒',
@@ -64,26 +58,17 @@ function toReminderList(response) {
 }
 
 export async function fetchReminderList(babyId) {
-  return toReminderList(await getReminderNodeList(babyId))
+  if (!babyId) {
+    return []
+  }
+  return []
 }
 
 export async function fetchTodayReminders(babyId) {
-  return toReminderList(await getTodayReminderNodes(babyId))
-}
-
-export async function completeReminder(reminder) {
-  return completeReminderNode({
-    babyId: reminder.babyId,
-    reminderNodeId: reminder.reminderNodeId
-  })
-}
-
-export async function snoozeReminder(reminder, snoozeMinutes = 15) {
-  return snoozeReminderNode({
-    babyId: reminder.babyId,
-    reminderNodeId: reminder.reminderNodeId,
-    snoozeMinutes
-  })
+  if (!babyId) {
+    return []
+  }
+  return []
 }
 
 export function buildReminderTypeSummaries(reminders) {

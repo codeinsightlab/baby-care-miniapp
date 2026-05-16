@@ -64,7 +64,7 @@
             </view>
           </view>
         </view>
-        <view v-if="noTodayReminders" class="empty-desc section-empty">暂无待执行提醒</view>
+        <view v-if="noTodayReminders" class="empty-desc section-empty">当前待执行将由新的提醒实例模型接入。</view>
         <view v-else class="pending-stack">
           <swiper
             class="pending-swiper"
@@ -74,7 +74,7 @@
           >
             <swiper-item
               v-for="item in pendingPreviewList"
-              :key="item.reminderNodeId"
+              :key="item.reminderInstanceId || item.id"
               class="pending-swiper-item"
             >
               <view class="pending-main-card">
@@ -88,8 +88,8 @@
                   <view class="pending-desc">{{ item.remark }}</view>
                 </view>
                 <view class="pending-actions">
-                  <button class="pending-action primary" :disabled="submitting" @click.stop="handleComplete(item)">完成</button>
-                  <button class="pending-action soft" :disabled="submitting" @click.stop="handleSnooze(item)">稍后</button>
+                  <button class="pending-action primary" :disabled="true">去记录</button>
+                  <button class="pending-action soft" :disabled="true">稍后</button>
                 </view>
               </view>
             </swiper-item>
@@ -105,7 +105,7 @@
             <view class="section-more">{{ timelineEventCountText }}</view>
           </view>
         </view>
-        <view v-if="noTimelineEvents" class="timeline-empty">今天还没有照护事件，完成记录或计划后会在这里显示。</view>
+        <view v-if="noTimelineEvents" class="timeline-empty">今天还没有照护事件，保存护理记录后会在这里显示。</view>
         <view v-else class="timeline-list">
           <view v-for="event in timelineEvents" :key="event.id" class="timeline-item" :class="event.itemClass">
             <view class="timeline-time">{{ event.displayTime }}</view>
@@ -137,7 +137,7 @@
 import { ensureCurrentBabyId, fetchBabyDetail } from '../../services/babyService'
 import { fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
 import { ensureSilentLogin } from '../../services/loginService'
-import { completeReminder, fetchTodayReminders, snoozeReminder } from '../../services/reminderService'
+import { fetchTodayReminders } from '../../services/reminderService'
 import { fetchTodayTimelineEvents } from '../../services/timelineService'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
@@ -404,42 +404,6 @@ export default {
       const current = Number(event && event.detail ? event.detail.current : 0)
       if (!Number.isNaN(current)) {
         this.activePendingIndex = current
-      }
-    },
-    async handleComplete(reminder) {
-      if (!reminder || this.submitting) {
-        return
-      }
-      this.submitting = true
-      try {
-        await completeReminder(reminder)
-        uni.showToast({ title: '已完成', icon: 'success' })
-        await Promise.all([
-          this.refreshTodayReminders(reminder.babyId),
-          this.refreshTodayTimeline(reminder.babyId)
-        ])
-      } catch (error) {
-        uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
-      } finally {
-        this.submitting = false
-      }
-    },
-    async handleSnooze(reminder) {
-      if (!reminder || this.submitting) {
-        return
-      }
-      this.submitting = true
-      try {
-        await snoozeReminder(reminder)
-        uni.showToast({ title: '已稍后', icon: 'success' })
-        await Promise.all([
-          this.refreshTodayReminders(reminder.babyId),
-          this.refreshTodayTimeline(reminder.babyId)
-        ])
-      } catch (error) {
-        uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
-      } finally {
-        this.submitting = false
       }
     },
     getTypeCount(recordType) {

@@ -3,7 +3,7 @@
     <view class="reminder-hero">
       <view class="baby-pill">{{ babyPillText }}</view>
       <view class="page-title">提醒</view>
-      <view class="page-desc">查看当前宝宝的个人提醒，完成或稍后都会同步记录。</view>
+      <view class="page-desc">提醒实例模型正在接入，本页暂作为提醒设置入口。</view>
     </view>
 
     <view class="section-card next-card">
@@ -34,13 +34,13 @@
         <view class="reminder-icon">铃</view>
         <view>
           <view class="empty-title">暂无待执行提醒</view>
-          <view class="empty-desc">可在照护计划中创建提醒节点。</view>
+          <view class="empty-desc">新的待执行提醒将由提醒实例生成后展示。</view>
         </view>
       </view>
       <view class="action-row" :class="{ triple: nextReminder }">
         <button class="soft-action plan-action" @click="goPlan">照护计划</button>
-        <button v-if="nextReminder" class="primary-action" :disabled="submitting" @click="handleComplete(nextReminder)">完成</button>
-        <button class="soft-action" :disabled="!nextReminder || submitting" @click="handleSnooze(nextReminder)">稍后提醒</button>
+        <button v-if="nextReminder" class="primary-action" :disabled="true">去记录</button>
+        <button class="soft-action" :disabled="true">稍后提醒</button>
       </view>
     </view>
 
@@ -62,11 +62,11 @@
 
     <view class="section-card">
       <view class="section-title">提醒列表</view>
-      <view v-if="noReminders" class="empty-desc list-empty">暂无提醒节点。</view>
+      <view v-if="noReminders" class="empty-desc list-empty">旧提醒节点已下线，待新计划提醒模型接入。</view>
       <view v-else class="reminder-list">
         <view
           v-for="(item, index) in reminders"
-          :key="item.reminderNodeId"
+          :key="item.reminderInstanceId || item.id"
           class="reminder-row"
           :class="{ faded: index > 0 }"
         >
@@ -75,8 +75,8 @@
             <view class="empty-desc">{{ item.statusLabel }} · {{ item.remark }}</view>
           </view>
           <view class="row-actions">
-            <button class="mini-action" :disabled="submitting || item.status === 'DONE'" @click="handleComplete(item)">完成</button>
-            <button class="mini-action soft-mini" :disabled="submitting || item.status === 'DONE'" @click="handleSnooze(item)">稍后</button>
+            <button class="mini-action" :disabled="true">去记录</button>
+            <button class="mini-action soft-mini" :disabled="true">稍后</button>
           </view>
         </view>
       </view>
@@ -98,10 +98,8 @@
 <script>
 import {
   buildReminderTypeSummaries,
-  completeReminder,
   fetchReminderList,
-  fetchTodayReminders,
-  snoozeReminder
+  fetchTodayReminders
 } from '../../services/reminderService'
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
@@ -195,36 +193,6 @@ export default {
       uni.navigateTo({
         url: '/pages/baby/create'
       })
-    },
-    async handleComplete(reminder) {
-      if (!reminder || this.submitting) {
-        return
-      }
-      this.submitting = true
-      try {
-        await completeReminder(reminder)
-        uni.showToast({ title: '已完成', icon: 'success' })
-        await this.loadReminders()
-      } catch (error) {
-        uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
-      } finally {
-        this.submitting = false
-      }
-    },
-    async handleSnooze(reminder) {
-      if (!reminder || this.submitting) {
-        return
-      }
-      this.submitting = true
-      try {
-        await snoozeReminder(reminder)
-        uni.showToast({ title: '已稍后', icon: 'success' })
-        await this.loadReminders()
-      } catch (error) {
-        uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
-      } finally {
-        this.submitting = false
-      }
     },
     async handleReminderSubscribe() {
       const result = await requestReminderSubscribe('reminder_enable')

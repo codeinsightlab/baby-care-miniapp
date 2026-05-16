@@ -1,7 +1,7 @@
 <template>
   <view class="plan-detail-page">
     <view class="page-title">基础护理计划</view>
-    <view class="page-desc">选择后会为当前宝宝创建基础护理提醒。</view>
+    <view class="page-desc">计划模板已保留，提醒实例生成链路待接入。</view>
 
     <view class="section-card">
       <view class="section-title">换尿布检查</view>
@@ -20,7 +20,7 @@
           <view class="node-desc">{{ item.displayTime }}</view>
         </view>
       </view>
-      <view class="add-node" @click="handleCreateDefault">创建默认提醒</view>
+      <view class="add-node" @click="handleCreateDefault">待接入提醒实例</view>
     </view>
 
     <view class="section-card">
@@ -42,7 +42,7 @@
     </view>
 
     <view class="footer-actions">
-      <button class="primary-action" :loading="submitting" :disabled="submitting" @click="handleCreateDefault">创建提醒</button>
+      <button class="primary-action" :loading="submitting" :disabled="submitting" @click="handleCreateDefault">接入中</button>
       <button class="soft-action" @click="goBack">稍后设置</button>
     </view>
   </view>
@@ -99,7 +99,7 @@ export default {
       this.submitting = true
       try {
         await createReminderFromTemplate(this.currentBabyId, template)
-        uni.showToast({ title: '已创建提醒', icon: 'success' })
+        uni.showToast({ title: '计划提醒待接入', icon: 'none' })
       } catch (error) {
         uni.showToast({ title: error.msg || error.message || '创建失败', icon: 'none' })
       } finally {

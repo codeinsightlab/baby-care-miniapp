@@ -1,5 +1,4 @@
 import { getPlanTemplateList } from '../api/plan'
-import { createReminderNode } from '../api/reminder'
 import { sanitizeVisibleText } from './textSanitizer'
 
 export const CARE_TYPE_META = {
@@ -91,15 +90,11 @@ export function buildPlanGroups(templates) {
 }
 
 export async function createReminderFromTemplate(babyId, template) {
+  if (!babyId) {
+    throw new Error('请先选择宝宝')
+  }
   if (!template || !template.templateId) {
     throw new Error('计划模板不存在')
   }
-  const response = await createReminderNode({
-    babyId,
-    templateId: template.templateId,
-    careType: template.careType,
-    reminderTime: template.suggestTime,
-    remark: template.templateName
-  })
-  return response && response.reminderNodeId
+  throw new Error('计划提醒新模型待接入，旧提醒节点创建接口已停用')
 }
