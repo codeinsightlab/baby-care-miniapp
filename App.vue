@@ -1,6 +1,13 @@
 <script>
+import { captureCurrentEntryInviteToken } from './utils/collaborationInvite'
+
 export default {
-  onLaunch() {}
+  onLaunch(options) {
+    captureCurrentEntryInviteToken(options || {})
+  },
+  onShow(options) {
+    captureCurrentEntryInviteToken(options || {})
+  }
 }
 </script>
 

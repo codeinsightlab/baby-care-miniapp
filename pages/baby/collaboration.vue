@@ -2,23 +2,13 @@
   <view class="page collaboration-page">
     <view class="collaboration-header">
       <view class="page-title">宝宝协作</view>
-      <view class="page-placeholder">邀请照顾人一起查看记录和提醒。</view>
+      <view class="page-placeholder">邀请照顾人一起查看记录，并按各自节奏设置提醒。</view>
     </view>
 
     <view v-if="!currentBabyId" class="state-card">
       <view class="state-title">请先选择宝宝</view>
-      <view class="state-desc">可以先输入邀请码加入宝宝协作，或选择宝宝后邀请照顾人。</view>
+      <view class="state-desc">选择宝宝后，可以查看协作成员或邀请新的照顾人。</view>
       <button class="page-action soft-action" @click="goBabyList">去选择宝宝</button>
-    </view>
-
-    <view>
-      <view class="section-card">
-        <view class="section-title">输入邀请码</view>
-        <input class="code-input" v-model="inviteCodeInput" placeholder="请输入邀请码" />
-        <button class="page-action soft-action" :loading="joining" :disabled="joining" @click="handleJoin">
-          加入宝宝协作
-        </button>
-      </view>
     </view>
 
     <view v-if="currentBabyId">
@@ -31,15 +21,18 @@
         </view>
       </view>
 
-      <view class="section-card">
+      <view v-if="collaboration.isOwner" class="section-card">
         <view class="section-title">邀请照顾人</view>
-        <view class="state-desc">生成邀请码后，对方输入邀请码即可一起照顾宝宝。</view>
-        <view v-if="invite.inviteCode" class="invite-box">
-          <view class="invite-code">{{ invite.inviteCode }}</view>
+        <view class="state-desc">生成小程序码后，对方扫码并确认即可加入宝宝协作。</view>
+        <view v-if="invite.inviteToken" class="invite-box">
+          <image v-if="invite.miniappCodeImage" class="invite-code-image" :src="invite.miniappCodeImage" mode="aspectFit" />
           <view class="state-desc">有效期至 {{ invite.expiresAt }}</view>
         </view>
         <button class="page-action primary-action" :loading="creatingInvite" :disabled="creatingInvite" @click="handleCreateInvite">
-          生成邀请码
+          生成协作小程序码
+        </button>
+        <button v-if="invite.inviteToken" class="page-action soft-action" :loading="disablingInvite" :disabled="disablingInvite" @click="handleDisableInvite">
+          使本次邀请失效
         </button>
       </view>
 
@@ -50,11 +43,31 @@
           <view v-for="item in collaborators" :key="item.collaboratorId" class="collaborator-row">
             <view class="collaborator-avatar">{{ item.avatarText }}</view>
             <view class="collaborator-main">
-              <view class="collaborator-name">{{ item.collaboratorName }}</view>
+              <view class="collaborator-name">
+                {{ item.collaboratorName }}
+                <text v-if="item.isOwner" class="owner-badge">主要</text>
+              </view>
               <view class="state-desc">{{ item.roleJoinedText }}</view>
             </view>
+            <button
+              v-if="canRemoveCollaborator(item)"
+              class="row-action"
+              :loading="removingCollaboratorId === item.collaboratorId"
+              :disabled="Boolean(removingCollaboratorId)"
+              @click="handleRemoveCollaborator(item)"
+            >
+              移除
+            </button>
           </view>
         </view>
+      </view>
+
+      <view v-if="canLeave" class="section-card">
+        <view class="section-title">退出协作</view>
+        <view class="state-desc">退出后将不能再查看这个宝宝的护理数据，可由主要照顾人重新邀请加入。</view>
+        <button class="page-action soft-action danger-action" :loading="leaving" :disabled="leaving" @click="handleLeave">
+          退出宝宝协作
+        </button>
       </view>
     </view>
   </view>
@@ -62,13 +75,15 @@
 
 <script>
 import {
-  createInviteCodeForBaby,
+  createInviteForBaby,
+  disableInvite,
   fetchCollaboratorList,
   fetchCurrentCollaboration,
-  joinBabyCollaboration,
-  refreshAccessibleBabiesAfterJoin
+  leaveBabyCollaboration,
+  removeCollaborator
 } from '../../services/collaborationService'
-import { getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
+import { getUser } from '../../utils/auth'
+import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
 
 function isUnauthorizedError(error) {
   return error && (error.unauthorized || error.statusCode === 401 || error.code === 401 || error.code === '401')
@@ -91,21 +106,28 @@ export default {
   data() {
     return {
       currentBabyId: '',
+      currentUserId: '',
       loading: false,
       creatingInvite: false,
-      joining: false,
+      disablingInvite: false,
+      removingCollaboratorId: '',
+      leaving: false,
       collaboration: {},
       collaborators: [],
-      invite: {},
-      inviteCodeInput: ''
+      invite: {}
     }
   },
   computed: {
     noCollaborators() {
       return this.collaborators.length === 0
+    },
+    canLeave() {
+      return Boolean(this.currentBabyId && !this.collaboration.isOwner)
     }
   },
   onShow() {
+    const user = getUser() || {}
+    this.currentUserId = user.userId || ''
     this.currentBabyId = getCurrentBabyId()
     if (this.currentBabyId) {
       this.loadCollaboration()
@@ -133,38 +155,62 @@ export default {
       }
       this.creatingInvite = true
       try {
-        this.invite = await createInviteCodeForBaby(this.currentBabyId)
-        uni.showToast({ title: '已生成邀请码', icon: 'success' })
+        // Owner only generates and displays the miniapp code here; invite confirmation is for scanned invitees.
+        this.invite = await createInviteForBaby(this.currentBabyId)
+        uni.showToast({ title: '已生成邀请', icon: 'success' })
       } catch (error) {
         uni.showToast({ title: error.msg || error.message || '生成失败', icon: 'none' })
       } finally {
         this.creatingInvite = false
       }
     },
-    async handleJoin() {
-      if (this.joining) {
+    async handleDisableInvite() {
+      if (!this.invite.inviteToken || this.disablingInvite) {
         return
       }
-      const inviteCode = String(this.inviteCodeInput || '').trim()
-      if (!inviteCode) {
-        uni.showToast({ title: '请输入邀请码', icon: 'none' })
-        return
-      }
-      this.joining = true
+      this.disablingInvite = true
       try {
-        const result = await joinBabyCollaboration(inviteCode)
-        if (result && result.babyId) {
-          setCurrentBabyId(result.babyId)
-          this.currentBabyId = result.babyId
-        }
-        await refreshAccessibleBabiesAfterJoin()
-        await this.loadCollaboration()
-        this.inviteCodeInput = ''
-        uni.showToast({ title: '已加入宝宝协作', icon: 'success' })
+        await disableInvite(this.invite.inviteToken)
+        this.invite = {}
+        uni.showToast({ title: '邀请已失效', icon: 'success' })
       } catch (error) {
-        uni.showToast({ title: error.msg || error.message || '加入失败', icon: 'none' })
+        uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
       } finally {
-        this.joining = false
+        this.disablingInvite = false
+      }
+    },
+    canRemoveCollaborator(item) {
+      return Boolean(this.collaboration.isOwner && item && !item.isOwner && item.collaboratorId !== this.currentUserId)
+    },
+    async handleRemoveCollaborator(item) {
+      if (!this.canRemoveCollaborator(item) || this.removingCollaboratorId) {
+        return
+      }
+      this.removingCollaboratorId = item.collaboratorId
+      try {
+        await removeCollaborator(this.currentBabyId, item.collaboratorId)
+        await this.loadCollaboration()
+        uni.showToast({ title: '已移除', icon: 'success' })
+      } catch (error) {
+        uni.showToast({ title: error.msg || error.message || '移除失败', icon: 'none' })
+      } finally {
+        this.removingCollaboratorId = ''
+      }
+    },
+    async handleLeave() {
+      if (!this.canLeave || this.leaving) {
+        return
+      }
+      this.leaving = true
+      try {
+        await leaveBabyCollaboration(this.currentBabyId)
+        clearCurrentBabyId()
+        uni.showToast({ title: '已退出协作', icon: 'success' })
+        uni.switchTab({ url: '/pages/baby/index' })
+      } catch (error) {
+        uni.showToast({ title: error.msg || error.message || '退出失败', icon: 'none' })
+      } finally {
+        this.leaving = false
       }
     },
     goBabyList() {
@@ -216,31 +262,18 @@ export default {
 }
 
 .invite-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   margin-top: 20rpx;
   padding: 24rpx;
   border-radius: 18rpx;
   background: #f8f9fb;
 }
 
-.invite-code {
-  color: #c96a16;
-  font-size: 44rpx;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.code-input {
-  box-sizing: border-box;
-  width: 100%;
-  height: 86rpx;
-  margin-top: 20rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #f8f9fb;
-  color: #1f2329;
-  font-size: 30rpx;
-  line-height: 86rpx;
+.invite-code-image {
+  width: 360rpx;
+  height: 360rpx;
 }
 
 .collaborator-list {
@@ -284,6 +317,29 @@ export default {
   font-weight: 600;
 }
 
+.owner-badge {
+  display: inline-flex;
+  margin-left: 10rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 999rpx;
+  background: #fff5ec;
+  color: #c96a16;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.row-action {
+  flex-shrink: 0;
+  width: 116rpx;
+  height: 58rpx;
+  margin-left: 16rpx;
+  border-radius: 999rpx;
+  color: #c96a16;
+  background: #fff5ec;
+  font-size: 24rpx;
+  line-height: 58rpx;
+}
+
 .primary-action,
 .soft-action {
   margin-top: 22rpx;
@@ -297,5 +353,10 @@ export default {
 .soft-action {
   color: #c96a16;
   background: #fff5ec;
+}
+
+.danger-action {
+  color: #d94b3d;
+  background: #fff1ee;
 }
 </style>

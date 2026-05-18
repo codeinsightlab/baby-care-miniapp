@@ -19,6 +19,7 @@
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { ensureSilentLogin } from '../../services/loginService'
 import { getToken } from '../../utils/auth'
+import { buildInviteConfirmUrl, consumePendingInviteToken } from '../../utils/collaborationInvite'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { isServerUnavailableError } from '../../utils/errorClassifier'
 
@@ -37,6 +38,9 @@ export default {
       try {
         if (!getToken()) {
           await this.loginSilently()
+        }
+        if (this.redirectCurrentEntryInviteIfNeeded()) {
+          return
         }
         await this.restoreCurrentBaby()
       } catch (error) {
@@ -58,6 +62,16 @@ export default {
         return
       }
       this.goCreate()
+    },
+    redirectCurrentEntryInviteIfNeeded() {
+      const inviteToken = consumePendingInviteToken()
+      if (!inviteToken) {
+        return false
+      }
+      uni.redirectTo({
+        url: buildInviteConfirmUrl(inviteToken)
+      })
+      return true
     },
     restoreEntry() {
       if (getCurrentBabyId()) {

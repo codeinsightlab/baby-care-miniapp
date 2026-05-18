@@ -14,17 +14,48 @@ export function getCollaborationMemberList(babyId) {
   })
 }
 
-export function createCollaborationInviteCode(data) {
+export function createCollaborationInvite(data) {
   return request({
-    url: '/api/mini/collaboration/invite-code/create',
+    url: '/api/mini/collaboration/invite/create',
     method: 'POST',
     data
   })
 }
 
-export function joinCollaborationByCode(data) {
+export function getCollaborationInviteDetail(inviteToken) {
   return request({
-    url: '/api/mini/collaboration/join-by-code',
+    url: `/api/mini/collaboration/invite/detail?inviteToken=${encodeURIComponent(inviteToken)}`,
+    method: 'GET'
+  })
+}
+
+export function joinCollaborationByToken(data) {
+  return request({
+    url: '/api/mini/collaboration/invite/join',
+    method: 'POST',
+    data
+  })
+}
+
+export function disableCollaborationInvite(data) {
+  return request({
+    url: '/api/mini/collaboration/invite/disable',
+    method: 'POST',
+    data
+  })
+}
+
+export function removeCollaborationMember(data) {
+  return request({
+    url: '/api/mini/collaboration/member/remove',
+    method: 'POST',
+    data
+  })
+}
+
+export function leaveCollaboration(data) {
+  return request({
+    url: '/api/mini/collaboration/member/leave',
     method: 'POST',
     data
   })

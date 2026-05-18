@@ -3,14 +3,14 @@ export const ENV = 'dev'
 
 const CONFIG = {
   dev: {
-    baseUrl: 'http://192.168.4.5:8080',
+    baseUrl: 'http://localhost:8080',
     miniappDevLoginEnabled: true,
-    mockVoiceEnabled: true
+    mockVoiceEnabled: false
   },
   test: {
-    baseUrl: 'https://springboot-vj9l-240203-4-1384307923.sh.run.tcloudbase.com',
-    miniappDevLoginEnabled: true,
-    mockVoiceEnabled: true
+    baseUrl: 'http://localhost:8080',
+    miniappDevLoginEnabled: false,
+    mockVoiceEnabled: false
   },
   prod: {
     baseUrl: 'https://springboot-vj9l-240203-4-1384307923.sh.run.tcloudbase.com',

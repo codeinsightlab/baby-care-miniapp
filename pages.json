@@ -56,6 +56,12 @@
       }
     },
     {
+      "path": "pages/baby/collaboration-invite",
+      "style": {
+        "navigationBarTitleText": "加入宝宝协作"
+      }
+    },
+    {
       "path": "pages/record/voice",
       "style": {
         "navigationBarTitleText": "语音记录"
@@ -89,6 +95,12 @@
       "path": "pages/plan/care",
       "style": {
         "navigationBarTitleText": "基础护理计划"
+      }
+    },
+    {
+      "path": "pages/plan/interaction",
+      "style": {
+        "navigationBarTitleText": "运动与认知计划"
       }
     }
   ],

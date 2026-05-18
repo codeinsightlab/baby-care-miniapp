@@ -1,103 +1,164 @@
 <template>
   <view class="plan-page">
-    <view class="plan-header">
-      <view class="page-title">照护计划</view>
-      <view class="stage-pill">个人提醒模板</view>
-      <view class="page-desc">选择模板后，可为当前宝宝创建提醒节点。</view>
+    <view class="top-bar">
+      <view>
+        <view class="baby-title">{{ babyName }}</view>
+        <view class="baby-age">{{ babyAgeText }}</view>
+      </view>
+      <view>
+        <view class="stage-pill">当前阶段：0-14天成长模板</view>
+        <view v-if="refreshing" class="refreshing-pill">更新中</view>
+      </view>
     </view>
 
-    <view v-if="loading" class="state-card">正在加载计划模板...</view>
+    <view class="page-desc">已根据宝宝信息生成参考计划，可按实际情况调整。</view>
+
+    <view v-if="!currentBabyId" class="state-card">
+      <view>请先选择宝宝，再设置护理计划。</view>
+      <button class="soft-action full-action" @click="goBabyList">去选择宝宝</button>
+    </view>
+
+    <view v-else-if="pageInitializing && !hasDisplayState" class="state-card">正在加载计划...</view>
 
     <view v-else class="plan-list">
-      <view
-        v-for="group in planGroups"
-        :key="group.careType"
-        class="plan-card"
-        :class="{ muted: group.disabled }"
-        @click="goPlan(group)"
-      >
-        <view>
-          <view class="plan-title">{{ group.title }}</view>
-          <view class="plan-desc">{{ group.description }}</view>
-          <view class="plan-time">建议时间：{{ group.displayTime }}</view>
+      <view v-for="group in planGroups" :key="group.careType" class="plan-card">
+        <view class="plan-card-main" @click="goPlan(group)">
+          <view>
+            <view class="plan-title">{{ group.title }}</view>
+            <view class="plan-desc">{{ group.description }}</view>
+            <view class="plan-summary">{{ group.summary }}</view>
+          </view>
+          <view class="plan-action">去设置</view>
         </view>
-        <view class="plan-action" :class="{ 'muted-action': group.disabled }">
-          {{ group.actionText }}
+
+        <view v-if="group.templates.length" class="template-list">
+          <view v-for="item in group.templates" :key="item.templateId" class="template-row">
+            <view>
+              <view class="template-title">{{ item.title }}</view>
+              <view class="template-meta">{{ item.careTypeLabel }} · {{ item.displayTime }}</view>
+            </view>
+            <switch
+              :checked="isPlanEnabled(item.enabled)"
+              color="#f28c38"
+              :disabled="togglingId === item.templateId"
+              @change="handleToggle(item, $event)"
+            />
+          </view>
         </view>
       </view>
     </view>
 
     <view class="footer-actions">
-      <button class="primary-action" @click="handlePlanSubscribe">接收计划提醒</button>
-      <button class="soft-action" disabled>稍后设置</button>
+      <button class="primary-action" @click="goToday">保存并进入首页</button>
+      <button class="soft-action" @click="goBack">稍后设置</button>
     </view>
   </view>
 </template>
 
 <script>
-import { buildPlanGroups, fetchPlanTemplates } from '../../services/planService'
-import { requestReminderSubscribe } from '../../utils/subscribe'
-
-function buildPlanGroupViewModels(templates) {
-  return buildPlanGroups(templates).map(group => ({
-    ...group,
-    actionText: group.disabled ? '待补充' : '去设置'
-  }))
-}
+import { fetchBabyDetail } from '../../services/babyService'
+import { PLAN_ENABLED_STATUS, getPlanEnabledText, isPlanEnabled } from '../../constants/planEnums'
+import { buildPlanGroups, fetchPlanTemplates, togglePlanTemplateEnabled } from '../../services/planService'
+import { getCurrentBabyId } from '../../utils/currentBaby'
 
 export default {
   name: 'PlanIndexPage',
   data() {
     return {
-      loading: false,
-      templates: [],
-      planGroups: []
+      pageInitializing: true,
+      refreshing: false,
+      togglingId: '',
+      currentBabyId: '',
+      loadErrorText: '',
+      displayState: {
+        baby: null,
+        planGroups: buildPlanGroups([])
+      }
+    }
+  },
+  computed: {
+    hasDisplayState() {
+      return Boolean(this.displayState.baby)
+    },
+    baby() {
+      return this.displayState.baby
+    },
+    planGroups() {
+      return this.displayState.planGroups
+    },
+    babyName() {
+      return this.baby && this.baby.nickname ? this.baby.nickname : '宝宝'
+    },
+    babyAgeText() {
+      return this.baby && this.baby.ageText ? this.baby.ageText : '7天'
     }
   },
   onShow() {
-    this.loadTemplates()
+    this.currentBabyId = getCurrentBabyId()
+    this.loadPageData()
   },
   methods: {
-    async loadTemplates() {
-      this.loading = true
+    isPlanEnabled,
+    async loadPageData() {
+      if (!this.currentBabyId) {
+        this.displayState = {
+          baby: null,
+          planGroups: buildPlanGroups([])
+        }
+        return
+      }
+      const isFirstLoad = !this.hasDisplayState
+      this.pageInitializing = isFirstLoad
+      this.refreshing = true
+      this.loadErrorText = ''
       try {
-        this.templates = await fetchPlanTemplates()
-        this.planGroups = buildPlanGroupViewModels(this.templates)
+        const [baby, templates] = await Promise.all([
+          fetchBabyDetail(this.currentBabyId),
+          fetchPlanTemplates(this.currentBabyId)
+        ])
+        this.displayState = {
+          baby,
+          planGroups: buildPlanGroups(templates)
+        }
       } catch (error) {
-        this.templates = []
-        this.planGroups = buildPlanGroupViewModels([])
+        this.loadErrorText = error.msg || error.message || '计划加载失败'
+        uni.showToast({ title: this.loadErrorText, icon: 'none' })
       } finally {
-        this.loading = false
+        this.refreshing = false
+        this.pageInitializing = false
       }
     },
     goPlan(group) {
-      if (!group || group.disabled || !group.pageUrl) {
+      if (!group || !group.pageUrl) {
         return
       }
       uni.navigateTo({ url: group.pageUrl })
     },
-    async handlePlanSubscribe() {
-      const result = await requestReminderSubscribe('plan_tab')
-      this.showSubscribeHint(result)
-    },
-    showSubscribeHint(result) {
-      if (!result || result.status === 'throttled') {
+    async handleToggle(item, event) {
+      if (!item || !item.templateId || this.togglingId) {
         return
       }
-
-      const titleMap = {
-        accepted: '已开启计划提醒',
-        rejected: '未开启通知，不影响继续设置',
-        failed: '通知授权失败，不影响继续设置',
-        unsupported: '当前环境不支持订阅授权',
-        unconfigured: '订阅模板待配置',
-        unknown: '授权结果待确认'
+      this.togglingId = item.templateId
+      const enabled = event.detail.value ? PLAN_ENABLED_STATUS.ENABLED : PLAN_ENABLED_STATUS.DISABLED
+      try {
+        await togglePlanTemplateEnabled(this.currentBabyId, item.templateId, enabled)
+        item.enabled = enabled
+        item.enabledText = getPlanEnabledText(enabled)
+        this.displayState.planGroups = buildPlanGroups(this.planGroups.reduce((list, group) => list.concat(group.templates), []))
+      } catch (error) {
+        uni.showToast({ title: error.msg || error.message || '状态更新失败', icon: 'none' })
+      } finally {
+        this.togglingId = ''
       }
-
-      uni.showToast({
-        title: titleMap[result.status] || '通知授权未完成',
-        icon: 'none'
-      })
+    },
+    goToday() {
+      uni.switchTab({ url: '/pages/today/index' })
+    },
+    goBabyList() {
+      uni.switchTab({ url: '/pages/baby/index' })
+    },
+    goBack() {
+      uni.navigateBack()
     }
   }
 }
@@ -107,92 +168,131 @@ export default {
 .plan-page {
   min-height: 100vh;
   box-sizing: border-box;
-  padding: 42rpx 28rpx 80rpx;
+  padding: 34rpx 28rpx 180rpx;
   background: #f7f6f2;
 }
 
-.plan-header {
-  margin-bottom: 28rpx;
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
 }
 
-.page-title {
+.baby-title {
   color: #1f2329;
-  font-size: 40rpx;
+  font-size: 34rpx;
   font-weight: 700;
+}
+
+.baby-age {
+  margin-top: 6rpx;
+  color: #1f2329;
+  font-size: 28rpx;
+  font-weight: 600;
 }
 
 .stage-pill {
   display: inline-flex;
-  margin-top: 18rpx;
-  padding: 10rpx 18rpx;
+  flex-shrink: 0;
+  padding: 8rpx 18rpx;
   border-radius: 999rpx;
+  border: 1rpx solid #f3d8bf;
   background: #fff5ec;
   color: #c96a16;
   font-size: 23rpx;
 }
 
+.refreshing-pill {
+  margin-top: 10rpx;
+  color: #8f98a3;
+  font-size: 22rpx;
+  text-align: right;
+}
+
 .page-desc {
-  margin-top: 14rpx;
-  color: #69707a;
+  margin: 24rpx 0 28rpx;
+  color: #8f98a3;
   font-size: 24rpx;
   line-height: 1.6;
 }
 
-.plan-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20rpx;
-  padding: 28rpx 24rpx;
-  border-radius: 20rpx;
-  background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
-}
-
 .state-card {
-  padding: 28rpx 24rpx;
+  padding: 32rpx;
   border-radius: 20rpx;
   background: #ffffff;
   color: #69707a;
   font-size: 26rpx;
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
 }
 
-.plan-card.muted {
-  opacity: 0.78;
+.plan-card {
+  margin-bottom: 20rpx;
+  padding: 26rpx 24rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
+}
+
+.plan-card-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
 }
 
 .plan-title {
   color: #1f2329;
-  font-size: 30rpx;
+  font-size: 31rpx;
   font-weight: 700;
 }
 
 .plan-desc {
-  margin-top: 10rpx;
+  margin-top: 12rpx;
   color: #69707a;
   font-size: 24rpx;
 }
 
-.plan-time {
+.plan-summary {
   margin-top: 8rpx;
-  color: #8a6500;
+  color: #8f98a3;
   font-size: 23rpx;
 }
 
 .plan-action {
   flex-shrink: 0;
-  margin-left: 18rpx;
-  padding: 12rpx 24rpx;
+  min-width: 136rpx;
+  padding: 18rpx 20rpx;
   border-radius: 999rpx;
   background: #fff5ec;
   color: #c96a16;
-  font-size: 24rpx;
+  font-size: 25rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.template-list {
+  margin-top: 20rpx;
+  border-top: 1rpx solid #eceff3;
+}
+
+.template-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18rpx 0 0;
+}
+
+.template-title {
+  color: #1f2329;
+  font-size: 25rpx;
   font-weight: 600;
 }
 
-.muted-action {
-  background: #f8f9fb;
-  color: #9aa1aa;
+.template-meta {
+  margin-top: 6rpx;
+  color: #8f98a3;
+  font-size: 22rpx;
 }
 
 .footer-actions {
@@ -208,10 +308,10 @@ export default {
   width: 100%;
   margin-left: 0;
   margin-right: 0;
-  height: 86rpx;
+  height: 84rpx;
   border-radius: 999rpx;
   font-size: 27rpx;
-  line-height: 86rpx;
+  line-height: 84rpx;
 }
 
 .primary-action {
@@ -220,7 +320,12 @@ export default {
 }
 
 .soft-action {
-  background: #ffffff;
-  color: #69707a;
+  border: 1rpx solid #f3d8bf;
+  background: #fff5ec;
+  color: #c96a16;
+}
+
+.full-action {
+  margin-top: 24rpx;
 }
 </style>
