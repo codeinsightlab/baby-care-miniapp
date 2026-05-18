@@ -3,12 +3,12 @@ export const ENV = 'dev'
 
 const CONFIG = {
   dev: {
-    baseUrl: 'http://localhost:8080',
-    miniappDevLoginEnabled: true,
+    baseUrl: 'http://192.168.4.11:8080',
+    miniappDevLoginEnabled: false,
     mockVoiceEnabled: false
   },
   test: {
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'http://192.168.4.11:8080',
     miniappDevLoginEnabled: false,
     mockVoiceEnabled: false
   },

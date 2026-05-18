@@ -12,7 +12,6 @@
         <view class="baby-name">{{ invite.babyName || '宝宝' }}</view>
         <view class="state-desc">{{ invite.inviterNickname || '主要照顾人' }} 邀请你一起照顾宝宝</view>
         <view v-if="invite.expiresAt" class="expire-text">有效期至 {{ invite.expiresAt }}</view>
-        <view v-if="invite.alreadyJoined" class="state-desc">你已经在这个宝宝协作中。</view>
       </view>
     </view>
 
@@ -22,7 +21,7 @@
       :disabled="loading || joining || Boolean(loadError)"
       @click="handleConfirmJoin"
     >
-      {{ invite.alreadyJoined ? '进入宝宝协作' : '确认加入' }}
+      确认加入
     </button>
     <button class="page-action soft-action" :disabled="joining" @click="goBabyList">暂不加入</button>
   </view>
@@ -77,6 +76,9 @@ export default {
           await ensureSilentLogin()
         }
         this.invite = await fetchInviteDetail(this.inviteToken)
+        if (await this.resolveActiveFamilyEntry(this.invite)) {
+          return
+        }
       } catch (error) {
         clearPendingInviteToken()
         uni.showToast({ title: error.msg || error.message || '邀请读取失败', icon: 'none' })
@@ -94,21 +96,41 @@ export default {
         if (!getToken()) {
           await ensureSilentLogin()
         }
-        const result = this.invite.alreadyJoined
-          ? { babyId: this.invite.babyId }
-          : await joinBabyCollaboration(this.inviteToken)
+        const result = await joinBabyCollaboration(this.inviteToken)
         if (result && result.babyId) {
           setCurrentBabyId(result.babyId)
         }
         await refreshAccessibleBabiesAfterJoin()
         clearPendingInviteToken()
-        uni.showToast({ title: this.invite.alreadyJoined ? '已进入协作' : '已加入协作', icon: 'success' })
+        uni.showToast({ title: '已加入协作', icon: 'success' })
         this.returnToNormalFlow()
       } catch (error) {
         uni.showToast({ title: error.msg || error.message || '加入失败', icon: 'none' })
       } finally {
         this.joining = false
       }
+    },
+    async resolveActiveFamilyEntry(invite) {
+      if (invite && invite.alreadyJoined) {
+        if (invite.babyId) {
+          setCurrentBabyId(invite.babyId)
+        }
+        clearPendingInviteToken()
+        this.returnToNormalFlow()
+        return true
+      }
+
+      let babies = []
+      try {
+        babies = await refreshAccessibleBabiesAfterJoin()
+      } catch (error) {
+        return false
+      }
+      if (Array.isArray(babies) && babies.length > 0) {
+        this.loadError = '当前账号已加入一个宝宝协作，暂不支持加入新的宝宝协作'
+        return true
+      }
+      return false
     },
     rejectInvalidEntry() {
       this.hasValidEntry = false

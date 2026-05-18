@@ -58,8 +58,14 @@ assert.equal(context.FAMILY_INVITE_STATUS.DISABLED, 'DISABLED')
 assert.equal(context.parseInviteTokenFromScene('abc123'), 'abc123')
 assert.equal(context.parseInviteTokenFromScene('fc=abc123'), 'abc123')
 assert.equal(context.parseInviteTokenFromScene('inviteToken%3Dtok'), 'tok')
+assert.equal(context.parseInviteTokenFromScene('token=tok-2&from=qr'), 'tok-2')
+assert.equal(context.parseInviteTokenFromScene('fc='), '')
+assert.equal(context.parseInviteTokenFromScene(''), '')
 assert.equal(context.extractInviteTokenFromLaunchOptions({ query: { scene: 'token%3Dscene-token' } }), 'scene-token')
-assert.equal(context.extractInviteTokenFromLaunchOptions({ scene: 'fc=launch-token' }), 'launch-token')
+assert.equal(context.extractInviteTokenFromLaunchOptions({ query: { inviteToken: ' query-token ' } }), 'query-token')
+assert.equal(context.extractInviteTokenFromLaunchOptions({ scene: '1001' }), '')
+assert.equal(context.extractInviteTokenFromLaunchOptions({ scene: 1001 }), '')
+assert.equal(context.extractInviteTokenFromLaunchOptions({ scene: 'fc=not-a-launch-token' }), '')
 
 context.savePendingInviteToken(' token-1 ')
 assert.equal(context.getPendingInviteToken(), 'token-1')
@@ -84,13 +90,47 @@ function simulateStartupFlow({ launchOptions = {}, hasBaby }) {
   if (inviteToken) {
     return `invite:${inviteToken}`
   }
-  return hasBaby ? 'today' : 'create'
+  return hasBaby ? 'today' : 'today-empty'
 }
 
 assert.equal(simulateStartupFlow({ launchOptions: {}, hasBaby: true }), 'today')
-assert.equal(simulateStartupFlow({ launchOptions: {}, hasBaby: false }), 'create')
+assert.equal(simulateStartupFlow({ launchOptions: {}, hasBaby: false }), 'today-empty')
 assert.equal(simulateStartupFlow({ launchOptions: { query: { scene: 'fc=scan-token' } }, hasBaby: true }), 'invite:scan-token')
+assert.equal(simulateStartupFlow({ launchOptions: { scene: 1001 }, hasBaby: true }), 'today')
+assert.equal(simulateStartupFlow({ launchOptions: { scene: 1001 }, hasBaby: false }), 'today-empty')
 assert.equal(simulateStartupFlow({ launchOptions: {}, hasBaby: true }), 'today')
+assert.equal(context.consumePendingInviteToken(), '')
+
+function simulateInvitePageOnLoad(options = {}) {
+  const inviteToken = context.normalizeInviteToken(options && options.inviteToken)
+    || context.extractInviteTokenFromLaunchOptions({ query: options || {} })
+    || context.consumePendingInviteToken()
+  context.clearPendingInviteToken()
+  return {
+    inviteToken,
+    hasValidEntry: Boolean(inviteToken),
+    nextRoute: inviteToken ? 'invite-confirm' : 'normal-flow'
+  }
+}
+
+assert.deepEqual(simulateInvitePageOnLoad({}), {
+  inviteToken: '',
+  hasValidEntry: false,
+  nextRoute: 'normal-flow'
+})
+context.savePendingInviteToken('pending-once')
+assert.deepEqual(simulateInvitePageOnLoad({}), {
+  inviteToken: 'pending-once',
+  hasValidEntry: true,
+  nextRoute: 'invite-confirm'
+})
+assert.equal(context.consumePendingInviteToken(), '')
+assert.deepEqual(simulateInvitePageOnLoad({ scene: 'token%3Dscene-confirm' }), {
+  inviteToken: 'scene-confirm',
+  hasValidEntry: true,
+  nextRoute: 'invite-confirm'
+})
+assert.equal(context.getPendingInviteToken(), '')
 
 assert.equal(context.isOwnerRole('OWNER'), true)
 assert.equal(context.isOwnerRole('MEMBER'), false)
@@ -98,6 +138,44 @@ const ownerVm = context.toCollaborationViewModel({ currentUserRole: 'OWNER', col
 assert.equal(ownerVm.isOwner, true)
 const memberVm = context.toCollaboratorViewModel({ collaboratorId: 2, collaboratorRole: 'MEMBER', nickname: '照顾人' })
 assert.equal(memberVm.isOwner, false)
+
+function canRemoveCollaborator({ isOwner, currentUserId, collaborator }) {
+  const collaboratorId = collaborator && collaborator.collaboratorId
+  return Boolean(
+    isOwner
+      && collaborator
+      && !collaborator.isOwner
+      && String(collaboratorId) !== String(currentUserId)
+  )
+}
+
+assert.equal(canRemoveCollaborator({ isOwner: true, currentUserId: 1, collaborator: { collaboratorId: 2, isOwner: false } }), true)
+assert.equal(canRemoveCollaborator({ isOwner: true, currentUserId: 1, collaborator: { collaboratorId: 1, isOwner: false } }), false)
+assert.equal(canRemoveCollaborator({ isOwner: true, currentUserId: 1, collaborator: { collaboratorId: '1', isOwner: false } }), false)
+assert.equal(canRemoveCollaborator({ isOwner: true, currentUserId: 1, collaborator: { collaboratorId: 3, isOwner: true } }), false)
+assert.equal(canRemoveCollaborator({ isOwner: false, currentUserId: 1, collaborator: { collaboratorId: 2, isOwner: false } }), false)
+
+function canLeave({ currentBabyId, isOwner }) {
+  return Boolean(currentBabyId && !isOwner)
+}
+
+assert.equal(canLeave({ currentBabyId: 8, isOwner: false }), true)
+assert.equal(canLeave({ currentBabyId: 8, isOwner: true }), false)
+assert.equal(canLeave({ currentBabyId: '', isOwner: false }), false)
+
+function simulateCreateBabyFailure(error) {
+  const actions = []
+  const isUnauthorized = error && (error.unauthorized || error.statusCode === 401 || error.code === 401 || error.code === '401')
+  if (isUnauthorized) {
+    return actions
+  }
+  actions.push({ type: 'toast', title: error.msg || error.message || '创建失败' })
+  return actions
+}
+
+assert.deepEqual(simulateCreateBabyFailure({ msg: '当前账号已加入一个家庭空间，暂不支持创建新的家庭空间' }), [
+  { type: 'toast', title: '当前账号已加入一个家庭空间，暂不支持创建新的家庭空间' }
+])
 
 await context.createInviteForBaby(8)
 await context.joinBabyCollaboration('token-2')
@@ -121,21 +199,60 @@ const inviteUtilSource = read('utils/collaborationInvite.js')
 assert.match(appSource, /captureCurrentEntryInviteToken/)
 assert.match(appSource, /onShow\(options\)/)
 assert.doesNotMatch(appSource, /savePendingInviteToken/)
+assert.doesNotMatch(inviteUtilSource, /parseInviteTokenFromScene\(options\.scene\)/)
+assert.doesNotMatch(inviteUtilSource, /options\.scene/)
 assert.match(splashSource, /redirectCurrentEntryInviteIfNeeded/)
 assert.match(splashSource, /consumePendingInviteToken/)
 assert.match(splashSource, /await this\.restoreCurrentBaby\(\)/)
 assert.ok(splashSource.indexOf('redirectCurrentEntryInviteIfNeeded') < splashSource.indexOf('restoreCurrentBaby'), 'Splash should check current-entry invite before baby restore only after login')
 assert.doesNotMatch(splashSource, /getPendingInviteToken/)
+assert.doesNotMatch(splashSource, /goCreate|pages\/baby\/create/)
 assert.doesNotMatch(inviteUtilSource, /StorageSync|BC_PENDING/)
 assert.doesNotMatch(inviteUtilSource, /setStorageSync|getStorageSync|removeStorageSync/)
+assert.doesNotMatch(appSource, /1001/)
+assert.doesNotMatch(splashSource, /1001/)
 assert.match(pageSource, /collaboration\.isOwner/)
+assert.match(pageSource, /v-if="collaboration\.isOwner"/)
+assert.match(pageSource, /v-if="canLeave"/)
+assert.match(pageSource, /return Boolean\(\s*this\.currentBabyId && !this\.collaboration\.isOwner\s*\)/)
 assert.match(pageSource, /handleRemoveCollaborator/)
 assert.match(pageSource, /handleLeave/)
+assert.match(pageSource, /String\(collaboratorId\) !== String\(this\.currentUserId\)/)
+assert.match(pageSource, /removeCollaborator\(this\.currentBabyId, item\.collaboratorId\)/)
+assert.match(pageSource, /leaveBabyCollaboration\(this\.currentBabyId\)/)
+assert.match(pageSource, /error\.msg \|\| error\.message \|\| '移除失败'/)
+assert.match(pageSource, /error\.msg \|\| error\.message \|\| '退出失败'/)
 assert.match(pageSource, /createInviteForBaby\(this\.currentBabyId\)/)
 assert.doesNotMatch(pageSource, /collaboration-invite/)
 assert.doesNotMatch(pageSource, /buildInviteConfirmUrl|FAMILY_INVITE_PAGE|redirectTo/)
+assert.doesNotMatch(pageSource, /OWNER|MEMBER|ACTIVE|REMOVED|LEFT/)
+
+const collaborationServiceSource = read('services/collaborationService.js')
+assert.match(collaborationServiceSource, /FAMILY_MEMBER_ROLES, FAMILY_ROLE_LABELS/)
+assert.match(collaborationServiceSource, /role === FAMILY_MEMBER_ROLES\.OWNER/)
+assert.match(collaborationServiceSource, /removeCollaborationMember\(\{ babyId, collaboratorId \}\)/)
+assert.match(collaborationServiceSource, /leaveCollaboration\(\{ babyId \}\)/)
+const familyEnumSource = read('constants/familyEnums.js')
+assert.match(familyEnumSource, /FAMILY_MEMBER_ROLES = Object\.freeze/)
+assert.match(familyEnumSource, /FAMILY_MEMBER_STATUS = Object\.freeze/)
+assert.match(familyEnumSource, /ACTIVE: 'ACTIVE'/)
+assert.match(familyEnumSource, /REMOVED: 'REMOVED'/)
+assert.match(familyEnumSource, /LEFT: 'LEFT'/)
+
+const createPageSource = read('pages/baby/create.vue')
+assert.match(createPageSource, /createBabyInCurrentFamily\(this\.form\)/)
+assert.doesNotMatch(createPageSource, /hasActiveFamily/)
+assert.doesNotMatch(createPageSource, /当前账号已加入一个宝宝协作，暂不支持创建新的宝宝档案/)
+assert.match(createPageSource, /error\.msg \|\| error\.message \|\| '创建失败'/)
+const handleSubmitSource = createPageSource.slice(createPageSource.indexOf('async handleSubmit()'), createPageSource.indexOf('goBack()'))
+assert.ok(handleSubmitSource.indexOf('uni.switchTab') < handleSubmitSource.indexOf('catch (error)'), 'create page should only navigate after successful create')
+assert.doesNotMatch(handleSubmitSource.slice(handleSubmitSource.indexOf('catch (error)')), /setCurrentBabyId|switchTab\(\{[\s\S]*\/pages\/today\/index/)
 assert.match(invitePageSource, /ensureSilentLogin/)
 assert.match(invitePageSource, /handleConfirmJoin/)
+assert.match(invitePageSource, /resolveActiveFamilyEntry/)
+assert.match(invitePageSource, /invite\.alreadyJoined/)
+assert.match(invitePageSource, /当前账号已加入一个宝宝协作，暂不支持加入新的宝宝协作/)
+assert.match(invitePageSource, /refreshAccessibleBabiesAfterJoin\(\)/)
 assert.match(invitePageSource, /rejectInvalidEntry/)
 assert.match(invitePageSource, /clearPendingInviteToken/)
 assert.doesNotMatch(invitePageSource, /savePendingInviteToken/)
@@ -145,10 +262,19 @@ assert.match(invitePageSource, /extractInviteTokenFromLaunchOptions\(\{ query: o
 assert.match(invitePageSource, /consumePendingInviteToken\(\)/)
 assert.match(invitePageSource, /returnToNormalFlow/)
 assert.match(invitePageSource, /uni\.reLaunch\(\{ url: '\/pages\/splash\/index' \}\)/)
+assert.match(invitePageSource, /catch \(error\) \{[\s\S]*clearPendingInviteToken\(\)[\s\S]*this\.returnToNormalFlow\(\)/)
+assert.match(invitePageSource, /rejectInvalidEntry\(\) \{[\s\S]*clearPendingInviteToken\(\)[\s\S]*this\.returnToNormalFlow\(\)/)
+assert.match(invitePageSource, /goBabyList\(\) \{[\s\S]*clearPendingInviteToken\(\)[\s\S]*this\.returnToNormalFlow\(\)/)
 const joinMethodStart = invitePageSource.indexOf('async handleConfirmJoin()')
 const joinMethodSource = invitePageSource.slice(joinMethodStart, invitePageSource.indexOf('rejectInvalidEntry()', joinMethodStart))
 assert.ok(joinMethodSource.indexOf('await refreshAccessibleBabiesAfterJoin()') < joinMethodSource.indexOf('this.returnToNormalFlow()'), 'Join success should refresh baby context before returning to normal startup flow')
+assert.ok(joinMethodSource.includes('clearPendingInviteToken()'), 'Join success should clear pending invite token before returning to normal flow')
 assert.doesNotMatch(invitePageSource, /invite list|邀请列表|邀请详情管理|管理页/)
 assert.doesNotMatch(appSource, /StorageSync|BC_PENDING/)
+
+const loginSource = read('pages/login/index.vue')
+assert.match(loginSource, /ensureSilentLogin/)
+assert.match(loginSource, /uni\.reLaunch\(\{[\s\S]*url: '\/pages\/splash\/index'/)
+assert.doesNotMatch(loginSource, /switchTab\(\{[\s\S]*\/pages\/today\/index/)
 
 console.log('family-collaboration frontend quality tests passed')

@@ -106,12 +106,19 @@ export async function fetchBabyDetail(babyId, requestOptions = {}) {
   return baby
 }
 
-export async function createBabyWithDefaultFamily(form) {
+export async function getCurrentFamilyId(requestOptions = {}) {
+  const babies = await fetchBabyList(requestOptions)
+  const currentBabyId = getCurrentBabyId()
+  const currentBaby = currentBabyId
+    ? babies.find(baby => String(baby.babyId) === String(currentBabyId) && baby.familyId)
+    : null
+  const fallbackBaby = babies.find(baby => baby && baby.familyId)
+  return currentBaby ? currentBaby.familyId : (fallbackBaby ? fallbackBaby.familyId : '')
+}
+
+export async function createBabyInCurrentFamily(form) {
   const nickname = String(form.nickname || '').trim()
-  const familyResponse = await createFamily({
-    familyName: `${nickname}的共同照护`
-  })
-  const familyId = familyResponse && familyResponse.familyId
+  const familyId = await resolveFamilyIdForBabyCreate(nickname)
   if (!familyId) {
     throw new Error('创建宝宝所需数据不完整')
   }
@@ -130,4 +137,16 @@ export async function createBabyWithDefaultFamily(form) {
     babyId,
     familyId
   }
+}
+
+async function resolveFamilyIdForBabyCreate(nickname) {
+  const currentFamilyId = await getCurrentFamilyId()
+  return currentFamilyId || createInitialFamilyForFirstBaby(nickname)
+}
+
+async function createInitialFamilyForFirstBaby(nickname) {
+  const familyResponse = await createFamily({
+    familyName: `${nickname}的共同照护`
+  })
+  return familyResponse && familyResponse.familyId
 }

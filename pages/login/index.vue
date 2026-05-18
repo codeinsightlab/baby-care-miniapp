@@ -54,8 +54,8 @@ export default {
       clearLoginState()
       try {
         await ensureSilentLogin()
-        uni.switchTab({
-          url: '/pages/today/index'
+        uni.reLaunch({
+          url: '/pages/splash/index'
         })
       } catch (error) {
         this.reasonText = error.msg || error.message || '进入失败，请重新确认后再试。'
@@ -75,8 +75,8 @@ export default {
       clearAuth()
       try {
         saveLoginResult(await devLoginResult())
-        uni.switchTab({
-          url: '/pages/today/index'
+        uni.reLaunch({
+          url: '/pages/splash/index'
         })
       } catch (error) {
         this.reasonText = error.msg || error.message || '快捷进入失败，请稍后重试。'

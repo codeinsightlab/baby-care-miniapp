@@ -61,7 +61,7 @@ export default {
         this.goToday()
         return
       }
-      this.goCreate()
+      this.goToday()
     },
     redirectCurrentEntryInviteIfNeeded() {
       const inviteToken = consumePendingInviteToken()
@@ -88,11 +88,6 @@ export default {
     goBabyList() {
       uni.switchTab({
         url: '/pages/baby/index'
-      })
-    },
-    goCreate() {
-      uni.navigateTo({
-        url: '/pages/baby/create'
       })
     },
     goLogin(error) {

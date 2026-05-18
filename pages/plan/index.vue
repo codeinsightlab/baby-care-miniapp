@@ -60,6 +60,7 @@ import { fetchBabyDetail } from '../../services/babyService'
 import { PLAN_ENABLED_STATUS, getPlanEnabledText, isPlanEnabled } from '../../constants/planEnums'
 import { buildPlanGroups, fetchPlanTemplates, togglePlanTemplateEnabled } from '../../services/planService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
+import { applyRefreshFailure, applyRefreshSuccess } from '../../utils/pageRefreshState'
 
 export default {
   name: 'PlanIndexPage',
@@ -116,12 +117,16 @@ export default {
           fetchBabyDetail(this.currentBabyId),
           fetchPlanTemplates(this.currentBabyId)
         ])
-        this.displayState = {
+        const refreshResult = applyRefreshSuccess({
           baby,
           planGroups: buildPlanGroups(templates)
-        }
+        })
+        this.displayState = refreshResult.displayState
+        this.loadErrorText = refreshResult.loadErrorText
       } catch (error) {
-        this.loadErrorText = error.msg || error.message || '计划加载失败'
+        const refreshResult = applyRefreshFailure(this.displayState, error, '计划加载失败')
+        this.displayState = refreshResult.displayState
+        this.loadErrorText = refreshResult.loadErrorText
         uni.showToast({ title: this.loadErrorText, icon: 'none' })
       } finally {
         this.refreshing = false

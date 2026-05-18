@@ -26,7 +26,6 @@ export function extractInviteTokenFromLaunchOptions(options = {}) {
   const query = options.query || {}
   return normalizeInviteToken(query.inviteToken)
     || parseInviteTokenFromScene(query.scene)
-    || parseInviteTokenFromScene(options.scene)
 }
 
 export function captureCurrentEntryInviteToken(options = {}) {

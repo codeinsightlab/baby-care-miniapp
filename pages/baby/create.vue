@@ -63,7 +63,7 @@
 </template>
 
 <script>
-import { createBabyWithDefaultFamily } from '../../services/babyService'
+import { createBabyInCurrentFamily } from '../../services/babyService'
 import { setCurrentBabyId } from '../../utils/currentBaby'
 
 function isUnauthorizedError(error) {
@@ -100,7 +100,9 @@ export default {
       return `${year}-${month}-${day}`
     },
     canSubmit() {
-      return !this.submitting && Boolean(this.form.nickname.trim()) && Boolean(this.form.birthday)
+      return !this.submitting
+        && Boolean(this.form.nickname.trim())
+        && Boolean(this.form.birthday)
     }
   },
   watch: {
@@ -159,7 +161,7 @@ export default {
 
       this.submitting = true
       try {
-        const result = await createBabyWithDefaultFamily(this.form)
+        const result = await createBabyInCurrentFamily(this.form)
         setCurrentBabyId(result.babyId)
         uni.switchTab({
           url: '/pages/today/index'

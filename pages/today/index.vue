@@ -8,6 +8,12 @@
       <button class="page-action soft-action" @click="refreshTodayData">重新加载</button>
     </view>
 
+    <view v-else-if="showNoBabyState" class="state-card no-baby-state">
+      <view class="empty-title">{{ noBabyEmptyState.title }}</view>
+      <view class="empty-desc">{{ noBabyEmptyState.description }}</view>
+      <button class="page-action soft-action" @click="goBabyList">{{ noBabyEmptyState.actionText }}</button>
+    </view>
+
     <view v-else-if="currentBaby">
       <view class="today-hero">
         <view class="baby-avatar">{{ babyInitial }}</view>
@@ -142,6 +148,7 @@ import { fetchTodayTimelineEvents } from '../../services/timelineService'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError, shouldClearCurrentBabyId } from '../../utils/errorClassifier'
+import { buildNoBabyEmptyState, shouldLoadTodayBabyData } from '../../utils/todayNoBabyState'
 
 function createTodayDisplayState() {
   return {
@@ -170,6 +177,7 @@ export default {
       pageError: '',
       submitting: false,
       activePendingIndex: 0,
+      noBabyEmptyState: buildNoBabyEmptyState(),
       displayState: createTodayDisplayState(),
       refreshingState: createRefreshingState()
     }
@@ -177,6 +185,9 @@ export default {
   computed: {
     hasDisplayState() {
       return Boolean(this.displayState.currentBaby)
+    },
+    showNoBabyState() {
+      return !this.pageInitializing && !this.pageError && !this.currentBaby
     },
     currentBaby() {
       return this.displayState.currentBaby
@@ -266,8 +277,9 @@ export default {
         try {
           const result = await ensureCurrentBabyId()
           if (!result.hasBaby) {
+            clearCurrentBabyId()
+            this.displayState = createTodayDisplayState()
             this.pageInitializing = false
-            this.goCreate()
             return
           }
           babyId = result.babyId
@@ -276,6 +288,11 @@ export default {
           this.pageInitializing = false
           return
         }
+      }
+
+      if (!shouldLoadTodayBabyData(babyId)) {
+        this.pageInitializing = false
+        return
       }
 
       const baby = await this.refreshCurrentBaby(babyId)
@@ -421,11 +438,6 @@ export default {
     goBabyList() {
       uni.switchTab({
         url: '/pages/baby/index'
-      })
-    },
-    goCreate() {
-      uni.navigateTo({
-        url: '/pages/baby/create'
       })
     }
   }

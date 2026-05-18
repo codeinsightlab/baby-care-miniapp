@@ -180,7 +180,13 @@ export default {
       }
     },
     canRemoveCollaborator(item) {
-      return Boolean(this.collaboration.isOwner && item && !item.isOwner && item.collaboratorId !== this.currentUserId)
+      const collaboratorId = item && item.collaboratorId
+      return Boolean(
+        this.collaboration.isOwner
+          && item
+          && !item.isOwner
+          && String(collaboratorId) !== String(this.currentUserId)
+      )
     },
     async handleRemoveCollaborator(item) {
       if (!this.canRemoveCollaborator(item) || this.removingCollaboratorId) {
