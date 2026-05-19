@@ -37,14 +37,6 @@ export function joinCollaborationByToken(data) {
   })
 }
 
-export function disableCollaborationInvite(data) {
-  return request({
-    url: '/api/mini/collaboration/invite/disable',
-    method: 'POST',
-    data
-  })
-}
-
 export function removeCollaborationMember(data) {
   return request({
     url: '/api/mini/collaboration/member/remove',

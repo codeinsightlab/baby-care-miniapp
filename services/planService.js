@@ -79,10 +79,11 @@ export async function fetchPlanTemplates(babyId, careType) {
   if (!babyId) {
     return []
   }
-  const response = await getPlanTemplateList({
-    babyId,
-    careType
-  })
+  const params = { babyId }
+  if (careType) {
+    params.careType = careType
+  }
+  const response = await getPlanTemplateList(params)
   return (Array.isArray(response.data) ? response.data : [])
     .map(toPlanTemplateViewModel)
     .filter(Boolean)

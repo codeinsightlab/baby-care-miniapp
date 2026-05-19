@@ -7,7 +7,7 @@
 
     <view class="invite-card">
       <view v-if="loading" class="state-desc">正在读取邀请...</view>
-      <view v-else-if="loadError" class="state-desc">{{ loadError }}</view>
+      <view v-else-if="loadError" class="state-desc invalid-desc">{{ loadError }}</view>
       <view v-else>
         <view class="baby-name">{{ invite.babyName || '宝宝' }}</view>
         <view class="state-desc">{{ invite.inviterNickname || '主要照顾人' }} 邀请你一起照顾宝宝</view>
@@ -163,9 +163,10 @@ export default {
 
 .invite-card {
   padding: 34rpx 30rpx;
+  border: 1rpx solid #ebe3d9;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 10rpx 28rpx rgba(31, 35, 41, 0.05);
+  box-shadow: 0 12rpx 28rpx rgba(31, 35, 41, 0.06);
 }
 
 .baby-name {
@@ -187,18 +188,67 @@ export default {
   color: #c96a16;
 }
 
+.invalid-desc {
+  padding: 18rpx 20rpx;
+  border: 1rpx solid #e9c5a6;
+  border-radius: 16rpx;
+  background: #fff4e9;
+  color: #9f5618;
+  font-weight: 600;
+}
+
 .primary-action,
 .soft-action {
+  box-sizing: border-box;
   margin-top: 24rpx;
+  min-height: 88rpx;
+  padding: 0 32rpx;
+  border: 2rpx solid transparent;
   border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.page-action::after {
+  border: 0;
 }
 
 .primary-action {
+  border-color: #df7b2d;
   background: #f28c38;
+  color: #ffffff;
+  box-shadow: 0 10rpx 22rpx rgba(242, 140, 56, 0.22);
 }
 
 .soft-action {
-  color: #c96a16;
-  background: #fff5ec;
+  border-color: #e8bd94;
+  color: #9f5618;
+  background: #fff4e9;
+  box-shadow: 0 6rpx 16rpx rgba(201, 106, 22, 0.09);
+}
+
+.page-action:active {
+  opacity: 0.9;
+  transform: translateY(2rpx) scale(0.99);
+  box-shadow: 0 4rpx 12rpx rgba(31, 35, 41, 0.08);
+}
+
+.page-action[disabled] {
+  opacity: 1;
+  box-shadow: none;
+}
+
+.primary-action[disabled] {
+  border-color: #dfc1a8;
+  background: #f3dcc8 !important;
+  color: #8f7660 !important;
+}
+
+.soft-action[disabled] {
+  border-color: #e6d3c3;
+  background: #f8ede3 !important;
+  color: #a78b74 !important;
 }
 </style>

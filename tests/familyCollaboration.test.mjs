@@ -36,9 +36,6 @@ const context = vm.createContext({
     calls.push({ name: 'joinCollaborationByToken', payload })
     return { data: { babyId: 7, collaboratorRole: 'MEMBER' } }
   },
-  disableCollaborationInvite: async (payload) => {
-    calls.push({ name: 'disableCollaborationInvite', payload })
-  },
   removeCollaborationMember: async (payload) => {
     calls.push({ name: 'removeCollaborationMember', payload })
   },
@@ -54,7 +51,8 @@ loadModule('services/collaborationService.js', context)
 
 assert.equal(context.FAMILY_MEMBER_ROLES.OWNER, 'OWNER')
 assert.equal(context.FAMILY_MEMBER_STATUS.ACTIVE, 'ACTIVE')
-assert.equal(context.FAMILY_INVITE_STATUS.DISABLED, 'DISABLED')
+assert.equal(context.FAMILY_INVITE_STATUS.ACTIVE, 'ACTIVE')
+assert.equal(context.FAMILY_INVITE_STATUS.EXPIRED, 'EXPIRED')
 assert.equal(context.parseInviteTokenFromScene('abc123'), 'abc123')
 assert.equal(context.parseInviteTokenFromScene('fc=abc123'), 'abc123')
 assert.equal(context.parseInviteTokenFromScene('inviteToken%3Dtok'), 'tok')
@@ -179,14 +177,12 @@ assert.deepEqual(simulateCreateBabyFailure({ msg: '当前账号已加入一个�
 
 await context.createInviteForBaby(8)
 await context.joinBabyCollaboration('token-2')
-await context.disableInvite('token-1')
 await context.removeCollaborator(8, 2)
 await context.leaveBabyCollaboration(8)
 const plainCalls = JSON.parse(JSON.stringify(calls))
 assert.deepEqual(plainCalls, [
   { name: 'createCollaborationInvite', payload: { babyId: 8 } },
   { name: 'joinCollaborationByToken', payload: { inviteToken: 'token-2' } },
-  { name: 'disableCollaborationInvite', payload: { inviteToken: 'token-1' } },
   { name: 'removeCollaborationMember', payload: { babyId: 8, collaboratorId: 2 } },
   { name: 'leaveCollaboration', payload: { babyId: 8 } }
 ])
@@ -213,6 +209,11 @@ assert.doesNotMatch(appSource, /1001/)
 assert.doesNotMatch(splashSource, /1001/)
 assert.match(pageSource, /collaboration\.isOwner/)
 assert.match(pageSource, /v-if="collaboration\.isOwner"/)
+assert.doesNotMatch(pageSource, /handleDisableInvite|disablingInvite|使本次邀请失效|邀请已失效/)
+assert.doesNotMatch(inviteUtilSource, /USED|CONSUMED/)
+assert.doesNotMatch(read('api/collaboration.js'), /invite\/disable|disableCollaborationInvite/)
+assert.doesNotMatch(read('services/collaborationService.js'), /disableInvite|disableCollaborationInvite/)
+assert.doesNotMatch(read('constants/familyEnums.js'), /DISABLED/)
 assert.match(pageSource, /v-if="canLeave"/)
 assert.match(pageSource, /return Boolean\(\s*this\.currentBabyId && !this\.collaboration\.isOwner\s*\)/)
 assert.match(pageSource, /handleRemoveCollaborator/)

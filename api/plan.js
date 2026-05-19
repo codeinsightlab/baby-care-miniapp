@@ -1,10 +1,10 @@
 import request from '../utils/request'
+import { appendQueryString } from '../utils/requestQuery'
 
 export function getPlanTemplateList(params) {
   return request({
-    url: '/api/mini/plan-template/list',
-    method: 'GET',
-    data: params
+    url: appendQueryString('/api/mini/plan-template/list', params),
+    method: 'GET'
   })
 }
 
@@ -34,7 +34,7 @@ export function updatePlanTemplateEnabled(templateId, data) {
 
 export function deletePlanTemplate(templateId, babyId) {
   return request({
-    url: `/api/mini/plan-template/${templateId}?babyId=${encodeURIComponent(babyId)}`,
+    url: appendQueryString(`/api/mini/plan-template/${templateId}`, { babyId }),
     method: 'DELETE'
   })
 }

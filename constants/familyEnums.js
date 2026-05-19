@@ -11,8 +11,7 @@ export const FAMILY_MEMBER_STATUS = Object.freeze({
 
 export const FAMILY_INVITE_STATUS = Object.freeze({
   ACTIVE: 'ACTIVE',
-  EXPIRED: 'EXPIRED',
-  DISABLED: 'DISABLED'
+  EXPIRED: 'EXPIRED'
 })
 
 export const FAMILY_ROLE_LABELS = Object.freeze({

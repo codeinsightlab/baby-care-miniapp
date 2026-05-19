@@ -31,9 +31,6 @@
         <button class="page-action primary-action" :loading="creatingInvite" :disabled="creatingInvite" @click="handleCreateInvite">
           生成协作小程序码
         </button>
-        <button v-if="invite.inviteToken" class="page-action soft-action" :loading="disablingInvite" :disabled="disablingInvite" @click="handleDisableInvite">
-          使本次邀请失效
-        </button>
       </view>
 
       <view class="section-card">
@@ -76,7 +73,6 @@
 <script>
 import {
   createInviteForBaby,
-  disableInvite,
   fetchCollaboratorList,
   fetchCurrentCollaboration,
   leaveBabyCollaboration,
@@ -109,7 +105,6 @@ export default {
       currentUserId: '',
       loading: false,
       creatingInvite: false,
-      disablingInvite: false,
       removingCollaboratorId: '',
       leaving: false,
       collaboration: {},
@@ -162,21 +157,6 @@ export default {
         uni.showToast({ title: error.msg || error.message || '生成失败', icon: 'none' })
       } finally {
         this.creatingInvite = false
-      }
-    },
-    async handleDisableInvite() {
-      if (!this.invite.inviteToken || this.disablingInvite) {
-        return
-      }
-      this.disablingInvite = true
-      try {
-        await disableInvite(this.invite.inviteToken)
-        this.invite = {}
-        uni.showToast({ title: '邀请已失效', icon: 'success' })
-      } catch (error) {
-        uni.showToast({ title: error.msg || error.message || '操作失败', icon: 'none' })
-      } finally {
-        this.disablingInvite = false
       }
     },
     canRemoveCollaborator(item) {

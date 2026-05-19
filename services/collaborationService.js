@@ -1,6 +1,5 @@
 import {
   createCollaborationInvite,
-  disableCollaborationInvite,
   getCollaborationInviteDetail,
   getCollaborationMemberList,
   getCurrentCollaboration,
@@ -104,10 +103,6 @@ export async function fetchInviteDetail(inviteToken) {
 export async function joinBabyCollaboration(inviteToken) {
   const response = await joinCollaborationByToken({ inviteToken })
   return toJoinResultViewModel(response && response.data ? response.data : null)
-}
-
-export async function disableInvite(inviteToken) {
-  return disableCollaborationInvite({ inviteToken })
 }
 
 export async function removeCollaborator(babyId, collaboratorId) {

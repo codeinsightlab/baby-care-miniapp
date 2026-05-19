@@ -36,7 +36,7 @@
         <view class="baby-status">{{ baby.statusText }}</view>
       </view>
 
-      <button class="page-action soft-action" @click="goCreate">新增宝宝</button>
+      <button class="page-action primary-action" @click="goCreate">新增宝宝</button>
       <button class="page-action soft-action" @click="goCollaboration">宝宝协作</button>
     </view>
   </view>
@@ -167,22 +167,23 @@ export default {
   box-sizing: border-box;
   margin-bottom: 20rpx;
   padding: 26rpx 24rpx;
-  border: 1rpx solid #eceff3;
+  border: 1rpx solid #e5e9ef;
   border-radius: 20rpx;
   background: #ffffff;
-  box-shadow: 0 8rpx 22rpx rgba(31, 35, 41, 0.05);
-  transition: transform 0.12s ease, background-color 0.12s ease;
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.06);
+  transition: transform 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .baby-item.active {
   border: 2rpx solid #f28c38;
   background: #fff8f2;
-  box-shadow: 0 10rpx 24rpx rgba(242, 140, 56, 0.1);
+  box-shadow: 0 12rpx 28rpx rgba(242, 140, 56, 0.14);
 }
 
 .baby-item:active {
   background: #fff8f2;
   transform: scale(0.99);
+  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.08);
 }
 
 .baby-avatar {
@@ -220,31 +221,66 @@ export default {
 .baby-status {
   margin-left: 20rpx;
   padding: 8rpx 18rpx;
-  border: 1rpx solid #f3d8bf;
+  border: 1rpx solid #e8bd94;
   border-radius: 999rpx;
-  background: #fff5ec;
-  color: #c96a16;
+  background: #fff1e4;
+  color: #a95712;
   font-size: 25rpx;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .primary-action,
 .soft-action {
+  box-sizing: border-box;
+  min-height: 88rpx;
+  padding: 0 32rpx;
+  border: 2rpx solid transparent;
   border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.page-action::after {
+  border: 0;
 }
 
 .primary-action {
+  border-color: #df7b2d;
   background: #f28c38;
   color: #ffffff;
+  box-shadow: 0 10rpx 22rpx rgba(242, 140, 56, 0.22);
 }
 
 .soft-action {
-  border: 1rpx solid #f3d8bf;
-  color: #c96a16;
-  background: #fff5ec;
+  border-color: #e8bd94;
+  color: #9f5618;
+  background: #fff4e9;
+  box-shadow: 0 6rpx 16rpx rgba(201, 106, 22, 0.09);
 }
 
 .page-action:active {
-  opacity: 0.82;
+  opacity: 0.9;
+  transform: translateY(2rpx) scale(0.99);
+  box-shadow: 0 4rpx 12rpx rgba(31, 35, 41, 0.08);
+}
+
+.page-action[disabled] {
+  opacity: 1;
+  box-shadow: none;
+}
+
+.primary-action[disabled] {
+  border-color: #dfc1a8;
+  background: #f3dcc8 !important;
+  color: #8f7660 !important;
+}
+
+.soft-action[disabled] {
+  border-color: #e6d3c3;
+  background: #f8ede3 !important;
+  color: #a78b74 !important;
 }
 </style>
