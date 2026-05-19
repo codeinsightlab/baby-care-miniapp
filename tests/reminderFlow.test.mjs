@@ -119,6 +119,9 @@ const reminderSource = read('services/reminderService.js')
 const fetchTodayBody = reminderSource.match(/export async function fetchTodayReminders[\s\S]*?\n}/)[0]
 
 assert.match(todaySource, /<reminder-card\s+:reminder="item"\s+mode="today"\s+@go-record="handleGoRecord"(?:\s+@snooze="[^"]+")?\s*\/>/)
+const reminderPageSource = read('pages/reminder/index.vue')
+assert.match(reminderPageSource, /<view v-else class="compensation-stack">\s*<reminder-card[\s\S]*v-for="item in reminders"[\s\S]*mode="compensation"[\s\S]*@go-record="handleGoRecord"[\s\S]*@ignore="handleIgnoreReminder"/)
+assert.doesNotMatch(reminderPageSource, /class="reminder-row"|class="reminder-list"|border-bottom:\s*1rpx solid #eceff3/)
 assert.match(todaySource, /<quick-record-sheet/)
 assert.match(todaySource, /buildQuickRecordDraftFromReminder\(reminder,\s*currentBabyId\)/)
 assert.doesNotMatch(recordSource, /consumePendingReminderForRecord\(\)|openPendingReminderSheet\(\)|<quick-record-sheet/)

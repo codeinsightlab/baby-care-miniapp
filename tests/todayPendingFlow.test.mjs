@@ -154,6 +154,8 @@ assert.match(todaySource, /ReminderCard/)
 assert.match(todaySource, /<reminder-card :reminder="item" mode="today" @go-record="handleGoRecord"(?:\s+@snooze="[^"]+")?\s*\/>/)
 assert.match(reminderPageSource, /ReminderCard/)
 assert.match(reminderPageSource, /<reminder-card[\s\S]*:reminder="item"[\s\S]*mode="compensation"[\s\S]*@go-record="handleGoRecord"/)
+assert.match(reminderPageSource, /<view v-else class="compensation-stack">\s*<reminder-card[\s\S]*v-for="item in reminders"/)
+assert.doesNotMatch(reminderPageSource, /class="reminder-row"|class="reminder-list"|border-bottom:\s*1rpx solid #eceff3/)
 assert.doesNotMatch(todaySource, /pending-main-card|reminder-mini-type|pending-task-status/)
 assert.doesNotMatch(reminderPageSource, /fetchReminderList/)
 

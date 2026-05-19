@@ -1,3 +1,38 @@
+### 2026-05-19 23:12 - Reminder 页待补处理强制复用 ReminderCard
+
+- 原始目标：
+  - Reminder 页“待补处理”必须与 Today 当前待执行真正复用同一个 `ReminderCard`，禁止继续列表化或独立实现。
+- 本轮轮次：
+  - Reminder MVP 最终 UI 一致性收口轮；只做 Reminder 页 UI 复用。
+- 上一轮做法：
+  - Reminder 页已经引入 `ReminderCard mode="compensation"`，但外层仍保留 `reminder-list` / `reminder-row` 和分割线式列表容器，页面仍在维护列表 spacing。
+- 用户反馈 / 否定点：
+  - Reminder 页待补处理不能只是“长得像”首页；
+  - 必须和首页当前待执行属于同一个 Reminder 系统；
+  - 禁止文本行列表、line item、dashboard list 或页面自绘 reminder item。
+- 本轮调整方向：
+  - Reminder 页待补处理改为直接堆叠 `ReminderCard mode="compensation"`；
+  - 删除 `reminder-row` / `reminder-list` 列表式 DOM 和分割线样式；
+  - 页面只负责容器堆叠，护理行为标题、原 reminder 时间、上下文和 CTA 继续全部交给 `ReminderCard`。
+- 涉及文件：
+  - `pages/reminder/index.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/reminderFlow.test.mjs`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 `ReminderCard` 的 `today/compensation` mode；
+  - 沿用统一 ReminderViewModel；
+  - 沿用 Reminder 页 `[today_start, now]` 未处理补偿流职责。
+- 回滚 / 放弃内容：
+  - 放弃 `reminder-row` / `reminder-list` 列表式待补处理；
+  - 放弃页面自绘 reminder spacing、row 分割线和独立 CTA；
+  - 放弃 Reminder 页向后台列表页 / dashboard list 演化。
+- 当前状态：
+  - Reminder 页待补处理已真正复用同一个 `ReminderCard mode="compensation"`；
+  - 本轮未修改 Reminder Query、Reminder Window、ReminderInstance、数据库、scheduler 或 backlog engine。
+- 后续注意：
+  - 仍需真机观察多 compensation reminder 堆叠时的视觉重量、焦虑感和 CTA 可点性。
+
 ### 2026-05-19 23:07 - TimelineItem 统一护理事实 ViewModel
 
 - 原始目标：

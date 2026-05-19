@@ -6,7 +6,7 @@
       <view class="page-desc">这里处理今天已经到点、但还没有记录的照护提醒。</view>
     </view>
 
-    <view v-if="visibleTypeSummaries.length" class="section-card">
+    <view class="section-card">
       <view class="section-title">待补处理</view>
       <view v-if="loading" class="empty-reminder">
         <view class="reminder-icon">铃</view>
@@ -30,19 +30,15 @@
           <view class="empty-desc">当前护理节奏请回到今日页查看。</view>
         </view>
       </view>
-      <view v-else class="reminder-list">
-        <view
+      <view v-else class="compensation-stack">
+        <reminder-card
           v-for="item in reminders"
           :key="item.reminderInstanceId || item.id"
-          class="reminder-row"
-        >
-          <reminder-card
-            :reminder="item"
-            mode="compensation"
-            @go-record="handleGoRecord"
-            @ignore="handleIgnoreReminder"
-          />
-        </view>
+          :reminder="item"
+          mode="compensation"
+          @go-record="handleGoRecord"
+          @ignore="handleIgnoreReminder"
+        />
       </view>
     </view>
 
@@ -525,31 +521,11 @@ export default {
   color: #6a8ccf;
 }
 
-.reminder-list {
-  margin-top: 18rpx;
-}
-
-.reminder-row {
-  display: block;
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid #eceff3;
-}
-
-.reminder-row.faded .setting-title {
-  font-weight: 600;
-}
-
-.reminder-row > view:first-child {
-  flex: 1;
-  min-width: 0;
-}
-
-.reminder-row:last-child {
-  border-bottom: 0;
-}
-
-.list-empty {
-  margin-top: 16rpx;
+.compensation-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 20rpx;
 }
 
 .setting-row {
