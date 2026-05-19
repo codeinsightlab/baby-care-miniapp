@@ -1,3 +1,119 @@
+### 2026-05-19 23:39 - Reminder 页视觉折叠层级
+
+- 原始目标：
+  - Reminder 页增加视觉折叠层级，避免补偿卡片无限展开造成焦虑和 backlog 感。
+- 本轮轮次：
+  - Reminder MVP 最终产品感收口轮；只做前端视觉层级折叠。
+- 上一轮做法：
+  - Reminder 页已收为只切时间窗口的 `ReminderCard mode="compensation"` 卡片流；
+  - 但所有 overdue / compensation reminder 会一次性全部展开，页面可能被拉长并重新变成 backlog。
+- 用户反馈 / 否定点：
+  - Reminder 是护理补偿流，不是历史 backlog 浏览系统；
+  - 多条 overdue 无限堆叠会增加护理焦虑；
+  - 本轮禁止后端分页、cursor、无限滚动、新 API 或 backlog 系统。
+- 本轮调整方向：
+  - 最近待补规则：最多展示最近 3 条 `ReminderCard mode="compensation"`；
+  - 更早提醒策略：超过 3 条的更早提醒默认折叠为“还有 X 条更早提醒”；
+  - 展开后仍然复用同一个 `ReminderCard mode="compensation"`；
+  - 展开 / 收起仅改变前端显示层级，数据继续一次性查询；
+  - 回归脚本新增断言，防止引入 `pageNo`、`pageSize`、`cursor` 或 `loadMore`。
+- 涉及文件：
+  - `pages/reminder/index.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/reminderFlow.test.mjs`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 `[today_start, now]` 一次性查询；
+  - 沿用统一 ReminderViewModel；
+  - 沿用 `ReminderCard mode="compensation"`；
+  - 沿用 Quick Record 回流。
+- 回滚 / 放弃内容：
+  - 放弃无限展开所有 compensation reminder；
+  - 不做技术分页、无限滚动、cursor、loadMore 或新增 Reminder API；
+  - 不引入 backlog list、dashboard list 或独立折叠 item。
+- 当前状态：
+  - Reminder 页已形成最近待补 + 更早提醒折叠的视觉层级；
+  - 最近 3 条完整展示，更早提醒默认弱化，点击展开 / 收起。
+- 后续注意：
+  - 仍需真实 3 条以上 compensation reminder 真机验证焦虑感、滚动节奏和展开 / 收起手感。
+
+### 2026-05-19 23:27 - Reminder 页只切时间窗口收口
+
+- 原始目标：
+  - Reminder 页直接复用首页 ReminderInstance Flow，只切查询时间窗口，不再重新设计“待补处理 UI”。
+- 本轮轮次：
+  - Reminder MVP 最终 UI 收口轮；只修 Reminder 页面容器与信息层级。
+- 上一轮做法：
+  - 已将待补处理改为页面级补偿流卡片布局，但页面仍保留“未处理提醒 / 待补处理 / 补偿概览 / 提醒设置”等解释型和后台感结构。
+- 用户反馈 / 否定点：
+  - Reminder 与 Today 的真正区别只有时间窗口，不是组件或页面 UI；
+  - Reminder 页不需要重新设计一套补偿 UI；
+  - 禁止 Reminder 再设计独立 UI、列表 wrapper、标题逻辑、概览或 CTA。
+- 本轮调整方向：
+  - 删除“未处理提醒 / 待补处理 / 补偿概览 / 提醒设置”等页面结构和文案；
+  - Reminder 页只保留当前宝宝轻提示和 `ReminderCard mode="compensation"` 卡片流；
+  - 删除补偿概览统计、订阅设置、Plan 入口 section 和相关样式 / 方法；
+  - 保持 `buildReminderQueueWindow()` 查询窗口 `[today_start, now]` 不变。
+- 涉及文件：
+  - `pages/reminder/index.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/reminderFlow.test.mjs`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用同一个 `ReminderCard`；
+  - 沿用统一 ReminderViewModel；
+  - 沿用 Quick Record Sheet 回流；
+  - 沿用 Reminder 页 `[today_start, now]` 查询窗口。
+- 回滚 / 放弃内容：
+  - 放弃 Reminder 页面级“未处理提醒”标题和解释型描述；
+  - 放弃“待补处理”section 标题；
+  - 放弃“补偿概览”统计 section；
+  - 放弃“提醒设置 / 去计划”section；
+  - 放弃 Reminder 页任何独立列表化或后台感 UI。
+- 当前状态：
+  - Today / Reminder 已收口为同一个 ReminderInstance Flow，不同点仅为时间窗口和 `mode`；
+  - Reminder 页面只渲染 `ReminderCard mode="compensation"` 卡片流。
+- 后续注意：
+  - 仍需用真实多条 compensation reminder 做真机滚动和 Quick Record 回流验证。
+
+### 2026-05-19 23:19 - Reminder 页补偿流布局回退
+
+- 原始目标：
+  - Reminder 页彻底回退为“补偿流卡片页面”，不能只是把列表 item 换成 `ReminderCard`。
+- 本轮轮次：
+  - Reminder MVP 最终 UI / IA 收口轮；只修 Reminder 页面整体 layout。
+- 上一轮做法：
+  - Reminder 页已经真正复用 `ReminderCard mode="compensation"`，并删除 `reminder-row` / `reminder-list`；
+  - 但待补卡片仍放在白色 `section-card` 容器内，用较紧的竖向 stack 呈现，视觉上仍像“列表区里放 card item”。
+- 用户反馈 / 否定点：
+  - 组件复用不等于布局统一；
+  - Reminder 页整体仍有 list spacing、row flow、item stack 的列表页感；
+  - Reminder 最终必须是护理补偿流，而不是后台 backlog / reminder list。
+- 本轮调整方向：
+  - 待补处理改为页面级 `compensation-flow-section`，标题在外；
+  - `ReminderCard mode="compensation"` 作为独立流卡片直接堆叠；
+  - 删除卡片外层白色列表容器感；
+  - 多卡片间距从 `18rpx` 提升到 `26rpx`；
+  - 空态 / 加载 / 错误态单独使用状态卡，不影响真实补偿卡片流。
+- 涉及文件：
+  - `pages/reminder/index.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/reminderFlow.test.mjs`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 `ReminderCard mode="compensation"`；
+  - 沿用统一 ReminderViewModel；
+  - 沿用 Reminder 页 `[today_start, now]` 未处理补偿流职责。
+- 回滚 / 放弃内容：
+  - 放弃白色 section 内包一组待补卡片的列表容器感；
+  - 放弃 `compensation-stack` 的 item stack 命名和紧凑间距；
+  - 放弃 Reminder 页继续向后台列表页 / backlog list 演化。
+- 当前状态：
+  - Reminder 待补处理已收为页面级补偿流卡片布局；
+  - 回归已加入 `compensation-flow-section -> compensation-card-flow -> ReminderCard` 结构断言。
+- 后续注意：
+  - 仍需真机观察 3 条以上 compensation 卡片堆叠的视觉重量、焦虑感、滚动节奏和 CTA 可点性。
+
 ### 2026-05-19 23:12 - Reminder 页待补处理强制复用 ReminderCard
 
 - 原始目标：
