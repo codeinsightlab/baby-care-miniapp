@@ -5,12 +5,12 @@
       <view class="page-placeholder">选择当前宝宝后进入今日护理首页。</view>
     </view>
 
-    <view v-if="loading" class="state-card">正在加载宝宝列表...</view>
+    <view v-if="isBabyListInitialLoading" class="state-card">正在加载宝宝列表...</view>
 
-    <view v-else-if="loadError" class="empty-state">
+    <view v-else-if="loadError && !hasVisibleBabies" class="empty-state">
       <view class="empty-title">宝宝列表加载失败</view>
       <view class="empty-desc">{{ loadErrorText }}</view>
-      <button class="page-action soft-action" @click="loadBabies">重新加载</button>
+      <button class="page-action soft-action" @click="refreshBabyList">重新加载</button>
     </view>
 
     <view v-else-if="noBabies" class="empty-state">
@@ -22,7 +22,7 @@
 
     <view v-else class="baby-list">
       <view
-        v-for="baby in babies"
+        v-for="baby in visibleBabies"
         :key="baby.babyId"
         class="baby-item"
         :class="{ active: baby.isCurrent }"
@@ -44,7 +44,7 @@
 
 <script>
 import { fetchBabyList } from '../../services/babyService'
-import { getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
+import { clearCurrentBabyId, getCurrentBabyId, setCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError } from '../../utils/errorClassifier'
 
 function buildBabyViewModels(babies, currentBabyId) {
@@ -66,44 +66,80 @@ export default {
       loadError: false,
       loadErrorText: '',
       babies: [],
-      currentBabyId: ''
+      currentBabyId: '',
+      babyListRequestSeq: 0
     }
   },
   computed: {
+    visibleBabies() {
+      return this.babies
+    },
+    hasVisibleBabies() {
+      return this.visibleBabies.length > 0
+    },
+    isBabyListInitialLoading() {
+      return this.loading && !this.hasVisibleBabies
+    },
     noBabies() {
-      return this.babies.length === 0
+      return this.visibleBabies.length === 0
     }
   },
-  onShow() {
-    this.currentBabyId = getCurrentBabyId()
-    this.loadBabies()
+  async onShow() {
+    await this.refreshBabyList()
+  },
+  async onPullDownRefresh() {
+    try {
+      await this.refreshBabyList()
+    } finally {
+      uni.stopPullDownRefresh()
+    }
   },
   methods: {
-    async loadBabies() {
+    async refreshBabyList() {
+      const requestSeq = this.babyListRequestSeq + 1
+      this.babyListRequestSeq = requestSeq
+      this.currentBabyId = getCurrentBabyId()
+      if (this.babies.length > 0) {
+        this.babies = buildBabyViewModels(this.babies, this.currentBabyId)
+      }
       this.loading = true
       this.loadError = false
       try {
         const babies = await fetchBabyList()
-        if (!this.currentBabyId && babies.length > 0) {
+        if (requestSeq !== this.babyListRequestSeq) {
+          return
+        }
+        const hasCurrentBaby = babies.some(baby => String(baby.babyId) === String(this.currentBabyId))
+        if ((!this.currentBabyId || !hasCurrentBaby) && babies.length > 0) {
           this.currentBabyId = babies[0].babyId
           setCurrentBabyId(this.currentBabyId)
         }
+        if (babies.length === 0) {
+          this.currentBabyId = ''
+          clearCurrentBabyId()
+        }
         this.babies = buildBabyViewModels(babies, this.currentBabyId)
       } catch (error) {
+        if (requestSeq !== this.babyListRequestSeq) {
+          return
+        }
         if (isUnauthorizedError(error)) {
           return
         }
-        this.babies = []
         this.loadErrorText = getErrorMessage(error)
         this.loadError = true
       } finally {
-        this.loading = false
+        if (requestSeq === this.babyListRequestSeq) {
+          this.loading = false
+        }
       }
     },
     selectBaby(baby) {
       if (!baby || !baby.babyId) {
         return
       }
+      this.currentBabyId = baby.babyId
+      this.babies = buildBabyViewModels(this.babies, this.currentBabyId)
       setCurrentBabyId(baby.babyId)
       uni.switchTab({
         url: '/pages/today/index'

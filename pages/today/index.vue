@@ -122,20 +122,34 @@
         </view>
       </view>
     </view>
+    <quick-record-sheet
+      :visible="quickRecordSheet.visible"
+      :draft="quickRecordSheet.draft"
+      :submitting="submitting"
+      :mock-voice-enabled="mockVoiceEnabled"
+      @close="closeQuickRecordSheet"
+      @confirm="handleQuickRecordConfirm"
+    />
   </view>
 </template>
 
 <script>
 import { ensureCurrentBabyId, fetchBabyDetail } from '../../services/babyService'
-import { fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
+import { createQuickCareRecord, fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
 import { ensureSilentLogin } from '../../services/loginService'
-import { fetchTodayReminders, savePendingReminderForRecord } from '../../services/reminderService'
+import { fetchTodayReminders } from '../../services/reminderService'
 import { fetchTodayTimelineEvents } from '../../services/timelineService'
 import TodayPendingCard from '../../components/TodayPendingCard.vue'
+import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
+import { isMockVoiceEnabled } from '../../config/env'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError, shouldClearCurrentBabyId } from '../../utils/errorClassifier'
 import { buildNoBabyEmptyState, shouldLoadTodayBabyData } from '../../utils/todayNoBabyState'
+import {
+  buildQuickRecordCareOptions,
+  buildQuickRecordDraftFromReminder
+} from '../../services/quickRecordService'
 
 function createTodayDisplayState() {
   return {
@@ -159,13 +173,19 @@ function createRefreshingState() {
 export default {
   name: 'TodayPage',
   components: {
-    TodayPendingCard
+    TodayPendingCard,
+    QuickRecordSheet
   },
   data() {
     return {
       pageInitializing: true,
       pageError: '',
       submitting: false,
+      mockVoiceEnabled: isMockVoiceEnabled(),
+      quickRecordSheet: {
+        visible: false,
+        draft: null
+      },
       activePendingIndex: 0,
       noBabyEmptyState: buildNoBabyEmptyState(),
       displayState: createTodayDisplayState(),
@@ -427,10 +447,60 @@ export default {
       }
     },
     handleGoRecord(reminder) {
-      savePendingReminderForRecord(reminder)
-      uni.switchTab({
-        url: '/pages/record/index'
-      })
+      const currentBabyId = this.currentBaby && this.currentBaby.babyId
+      const draft = buildQuickRecordDraftFromReminder(reminder, currentBabyId)
+      if (!draft) {
+        uni.showToast({
+          title: '提醒不属于当前宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      this.quickRecordSheet = {
+        visible: true,
+        draft
+      }
+    },
+    closeQuickRecordSheet() {
+      this.quickRecordSheet = {
+        visible: false,
+        draft: null
+      }
+    },
+    async handleQuickRecordConfirm(result) {
+      const draft = this.quickRecordSheet.draft
+      if (this.submitting || !draft) {
+        return
+      }
+      if (!this.currentBaby || String(draft.babyId) !== String(this.currentBaby.babyId)) {
+        uni.showToast({
+          title: '提醒不属于当前宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      this.submitting = true
+      try {
+        const options = buildQuickRecordCareOptions(draft, result)
+        await createQuickCareRecord(draft.babyId, draft.recordType, options)
+        uni.$emit('care-record-created', {
+          babyId: draft.babyId,
+          reminderInstanceId: draft.reminderInstanceId
+        })
+        this.closeQuickRecordSheet()
+        uni.showToast({
+          title: '已记录',
+          icon: 'success'
+        })
+        await this.refreshTodayData()
+      } catch (error) {
+        uni.showToast({
+          title: error.msg || '记录失败',
+          icon: 'none'
+        })
+      } finally {
+        this.submitting = false
+      }
     },
     handleSnoozeReminder(reminder) {
       if (!reminder) {

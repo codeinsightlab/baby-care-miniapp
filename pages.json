@@ -23,7 +23,8 @@
     {
       "path": "pages/record/index",
       "style": {
-        "navigationBarTitleText": "记录"
+        "navigationBarTitleText": "记录",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -36,7 +37,8 @@
     {
       "path": "pages/baby/index",
       "style": {
-        "navigationBarTitleText": "宝宝"
+        "navigationBarTitleText": "宝宝",
+        "enablePullDownRefresh": true
       }
     },
     {

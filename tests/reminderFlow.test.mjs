@@ -76,6 +76,7 @@ loadModule('utils/requestQuery.js', context)
 loadModule('api/reminder.js', context)
 loadModule('constants/careTypeMeta.js', context)
 loadModule('services/reminderService.js', context)
+loadModule('services/quickRecordService.js', context)
 loadModule('api/careRecord.js', context)
 loadModule('services/careRecordService.js', context)
 
@@ -98,7 +99,12 @@ assert.equal(stored.reminderInstanceId, 11)
 assert.equal(stored.careType, 'FEEDING')
 assert.equal(context.consumePendingReminderForRecord(), null)
 
-await context.createQuickCareRecord(2, 'FEEDING', { reminderInstanceId: 11 })
+const quickRecordDraft = context.buildQuickRecordDraftFromReminder(reminders[0], 2)
+assert.equal(quickRecordDraft.reminderInstanceId, 11)
+assert.equal(quickRecordDraft.title, '晨间喂养')
+await context.createQuickCareRecord(2, 'FEEDING', context.buildQuickRecordCareOptions(quickRecordDraft, {
+  remark: '宝宝喝完后拍嗝顺利'
+}))
 assert.deepEqual(plain(requests.at(-1)), {
   url: '/api/mini/care-record/create',
   method: 'POST',
@@ -106,7 +112,7 @@ assert.deepEqual(plain(requests.at(-1)), {
     babyId: 2,
     recordType: 'FEEDING',
     recordTime: requests.at(-1).data.recordTime,
-    remark: '记录喂奶',
+    remark: '宝宝喝完后拍嗝顺利',
     reminderInstanceId: 11
   }
 })
@@ -114,13 +120,16 @@ assert.match(requests.at(-1).data.recordTime, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d
 
 const todaySource = read('pages/today/index.vue')
 const recordSource = read('pages/record/index.vue')
+const quickRecordSheetSource = read('components/QuickRecordSheet.vue')
 const reminderSource = read('services/reminderService.js')
 const fetchTodayBody = reminderSource.match(/export async function fetchTodayReminders[\s\S]*?\n}/)[0]
 
 assert.match(todaySource, /<today-pending-card\s+:reminder="item"\s+@go-record="handleGoRecord"(?:\s+@snooze="[^"]+")?\s*\/>/)
-assert.match(todaySource, /savePendingReminderForRecord\(reminder\)/)
+assert.match(todaySource, /<quick-record-sheet/)
+assert.match(todaySource, /buildQuickRecordDraftFromReminder\(reminder,\s*currentBabyId\)/)
 assert.match(recordSource, /consumePendingReminderForRecord\(\)/)
-assert.match(recordSource, /reminderInstanceId: this\.pendingReminder\.reminderInstanceId/)
+assert.match(recordSource, /openPendingReminderSheet\(\)/)
+assert.match(quickRecordSheetSource, /placeholder="补充记录（可选）"/)
 assert.match(fetchTodayBody, /queryReminderInstances\(babyId,\s*query\)/)
 assert.match(fetchTodayBody, /buildTodayPendingWindow\(\)/)
 assert.doesNotMatch(reminderSource, /bc_reminder_node|bc_reminder_log|reminderNode|reminderLog/)

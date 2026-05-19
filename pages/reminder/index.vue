@@ -89,21 +89,35 @@
         <button class="subscribe-action" @click="handleReminderSubscribe">接收提醒</button>
       </view>
     </view>
+    <quick-record-sheet
+      :visible="quickRecordSheet.visible"
+      :draft="quickRecordSheet.draft"
+      :submitting="submitting"
+      :mock-voice-enabled="mockVoiceEnabled"
+      @close="closeQuickRecordSheet"
+      @confirm="handleQuickRecordConfirm"
+    />
   </view>
 </template>
 
 <script>
 import {
   buildReminderTypeSummaries,
-  savePendingReminderForRecord,
   buildReminderQueueWindow,
   queryReminderInstances
 } from '../../services/reminderService'
+import { createQuickCareRecord } from '../../services/careRecordService'
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
 import { requestReminderSubscribe } from '../../utils/subscribe'
+import { isMockVoiceEnabled } from '../../config/env'
 import TodayPendingCard from '../../components/TodayPendingCard.vue'
+import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
+import {
+  buildQuickRecordCareOptions,
+  buildQuickRecordDraftFromReminder
+} from '../../services/quickRecordService'
 
 function buildTypeSummaryViewModels(reminders) {
   return buildReminderTypeSummaries(reminders).map(item => ({
@@ -114,7 +128,8 @@ function buildTypeSummaryViewModels(reminders) {
 export default {
   name: 'ReminderPage',
   components: {
-    TodayPendingCard
+    TodayPendingCard,
+    QuickRecordSheet
   },
   data() {
     return {
@@ -123,6 +138,11 @@ export default {
       loadError: false,
       loadErrorText: '',
       submitting: false,
+      mockVoiceEnabled: isMockVoiceEnabled(),
+      quickRecordSheet: {
+        visible: false,
+        draft: null
+      },
       todayReminders: [],
       reminders: [],
       typeSummaries: buildTypeSummaryViewModels([])
@@ -199,10 +219,59 @@ export default {
       })
     },
     handleGoRecord(reminder) {
-      savePendingReminderForRecord(reminder)
-      uni.switchTab({
-        url: '/pages/record/index'
-      })
+      const draft = buildQuickRecordDraftFromReminder(reminder, this.currentBabyId)
+      if (!draft) {
+        uni.showToast({
+          title: '提醒不属于当前宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      this.quickRecordSheet = {
+        visible: true,
+        draft
+      }
+    },
+    closeQuickRecordSheet() {
+      this.quickRecordSheet = {
+        visible: false,
+        draft: null
+      }
+    },
+    async handleQuickRecordConfirm(result) {
+      const draft = this.quickRecordSheet.draft
+      if (this.submitting || !draft) {
+        return
+      }
+      if (String(draft.babyId) !== String(this.currentBabyId)) {
+        uni.showToast({
+          title: '提醒不属于当前宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      this.submitting = true
+      try {
+        const options = buildQuickRecordCareOptions(draft, result)
+        await createQuickCareRecord(draft.babyId, draft.recordType, options)
+        uni.$emit('care-record-created', {
+          babyId: draft.babyId,
+          reminderInstanceId: draft.reminderInstanceId
+        })
+        this.closeQuickRecordSheet()
+        uni.showToast({
+          title: '已记录',
+          icon: 'success'
+        })
+        await this.loadReminders()
+      } catch (error) {
+        uni.showToast({
+          title: error.msg || '记录失败',
+          icon: 'none'
+        })
+      } finally {
+        this.submitting = false
+      }
     },
     handleSnoozeReminder(reminder) {
       if (!reminder) {

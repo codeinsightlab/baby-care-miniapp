@@ -1,0 +1,78 @@
+### 2026-05-19 21:52 - baby 列表页刷新机制收口
+
+- 原始目标：
+  - 按 record 页同样方式修正 `pages/baby/index` 刷新机制。
+- 本轮轮次：
+  - 统一前端回流策略的第二处页面收口。
+- 上一轮做法：
+  - record 页已将今日时间轴刷新收敛到 `refreshTimelineData()`；
+  - baby 页仍使用旧 `loadBabies()`，只在 `onShow` 拉取，没有下拉刷新，接口失败会清空宝宝列表。
+- 用户反馈 / 否定点：
+  - `pages/baby/index` 也存在刷新问题，需要按刚才方式调整。
+- 本轮调整方向：
+  - 将宝宝列表刷新统一收敛到 `refreshBabyList()`；
+  - `onShow`、下拉刷新和重试都复用同一入口；
+  - 每次刷新重新读取 `currentBabyId`，并按最新宝宝列表重算当前宝宝标记；
+  - 接口失败时保留最后一次成功列表，不假刷新、不清空成错误空态。
+- 涉及文件：
+  - `pages/baby/index.vue`
+  - `pages.json`
+  - `tests/babyListRefresh.test.mjs`
+  - `../docs/frontend-regression-index.md`
+  - `../docs/miniapp-state.md`
+  - `../docs/changelog.md`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 `BC_CURRENT_BABY_ID` 作为唯一持久化当前宝宝入口；
+  - 沿用 `fetchBabyList()` 和现有宝宝列表 view model；
+  - 沿用 tabBar 页面 `onShow` 作为返回刷新入口。
+- 回滚 / 放弃内容：
+  - 放弃页面内分散的 `loadBabies()` 入口；
+  - 不新增 Vuex / Pinia / 全局缓存层 / 全局请求管理器；
+  - 不修改 Family / Invite、数据库或后端接口。
+- 当前状态：
+  - baby 列表刷新入口已统一；
+  - 下拉刷新已启用；
+  - currentBaby 重读、失效回落、空列表清理和失败保留旧 UI 已接入；
+  - 新增 baby 列表刷新回归脚本并登记强门禁。
+- 后续注意：
+  - 真机微信环境未由 Codex 执行，需在用户前端服务可用时验证 tab 切换、下拉刷新、新增宝宝后返回列表、切换宝宝后 active 状态。
+
+### 2026-05-19 21:43 - record 今日时间轴刷新机制收口
+
+- 原始目标：
+  - 修正 `pages/record/index` 今日时间轴刷新机制，让记录页遵守项目统一前端回流策略。
+- 本轮轮次：
+  - Reminder MVP 真实交互收口阶段的 record 刷新机制专项修复。
+- 上一轮做法：
+  - `record/index` 直接使用 `loadRecords()`，只在 `onShow` 和本页快速记录保存后刷新；没有接入下拉刷新，也没有订阅 `care-record-created` 回流事件。
+- 用户反馈 / 否定点：
+  - 新增护理记录后 timeline 不刷新，页面切换后数据滞后，currentBaby 切换后 timeline 不同步，Reminder / Quick Record / Timeline 回流不一致。
+- 本轮调整方向：
+  - 将记录页今日时间轴刷新统一收敛到 `refreshTimelineData()`；
+  - `onShow`、下拉刷新、重试、Quick Record 保存后刷新和 `care-record-created` 回流都复用同一入口；
+  - 继续沿用既有 `care-record-created`，不新增 Timeline 专属事件；
+  - `refreshTimelineData()` 每次重新读取 `currentBabyId`，并用 `recordsBabyId` 防止旧宝宝记录串入当前 timeline。
+- 涉及文件：
+  - `pages/record/index.vue`
+  - `pages.json`
+  - `tests/recordTimelineRefresh.test.mjs`
+  - `../docs/frontend-regression-index.md`
+  - `../docs/miniapp-state.md`
+  - `../docs/changelog.md`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 CareRecord 作为记录页 timeline 的唯一事实来源；
+  - 沿用 `care-record-created` 作为 Quick Record 保存后的跨页面回流事件；
+  - 沿用现有 `BC_CURRENT_BABY_ID` 作为当前宝宝持久化入口。
+- 回滚 / 放弃内容：
+  - 放弃页面内分散的 `loadRecords()` 刷新入口；
+  - 不新增 Vuex / Pinia / 全局缓存层 / Timeline 状态机 / Timeline 专属事件。
+- 当前状态：
+  - record 刷新入口已统一；
+  - 下拉刷新已启用；
+  - 事件回流和 currentBaby 重读策略已接入；
+  - 新增 record timeline 刷新回归脚本并登记强门禁。
+- 后续注意：
+  - 本轮未修改 ReminderInstance、Timeline、CareRecord、Family / Invite、数据库或后端接口；
+  - 真机微信环境未由 Codex 执行，需在用户设备上按 Today / Reminder / currentBaby 三条链路做最终验收。

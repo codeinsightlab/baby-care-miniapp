@@ -103,15 +103,19 @@ export async function fetchCareRecordList(params) {
 }
 
 export function createQuickCareRecord(babyId, recordType, options = {}) {
-  const type = CARE_RECORD_TYPES.find((item) => item.recordType === recordType)
   const payload = {
     babyId,
     recordType,
     recordTime: formatDateTime(new Date()),
-    remark: type ? type.defaultRemark : getRecordTypeLabel(recordType)
+    remark: Object.prototype.hasOwnProperty.call(options, 'remark')
+      ? sanitizeVisibleText(options.remark || '')
+      : getRecordTypeLabel(recordType)
   }
   if (options.reminderInstanceId) {
     payload.reminderInstanceId = options.reminderInstanceId
+  }
+  if (options.voiceRecordId) {
+    payload.voiceRecordId = options.voiceRecordId
   }
   return createCareRecord(payload)
 }

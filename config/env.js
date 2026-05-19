@@ -5,12 +5,12 @@ const CONFIG = {
   dev: {
     baseUrl: 'http://192.168.10.4:8080',
     miniappDevLoginEnabled: false,
-    mockVoiceEnabled: false
+    mockVoiceEnabled: true
   },
   test: {
     baseUrl: 'http://192.168.4.11:8080',
     miniappDevLoginEnabled: false,
-    mockVoiceEnabled: false
+    mockVoiceEnabled: true
   },
   prod: {
     baseUrl: 'https://springboot-vj9l-240203-4-1384307923.sh.run.tcloudbase.com',

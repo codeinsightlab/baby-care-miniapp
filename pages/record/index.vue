@@ -46,19 +46,19 @@
         <view class="section-title">今日时间轴</view>
         <view class="section-more">{{ timelineCountText }}</view>
       </view>
-      <view v-if="loading" class="timeline-empty">
+      <view v-if="isTimelineInitialLoading" class="timeline-empty">
         <view class="empty-dot"></view>
         <view>
           <view class="empty-title">正在加载记录</view>
           <view class="empty-desc">请稍候。</view>
         </view>
       </view>
-      <view v-else-if="loadError" class="timeline-empty">
+      <view v-else-if="loadError && !hasVisibleRecords" class="timeline-empty">
         <view class="empty-dot"></view>
         <view>
           <view class="empty-title">记录加载失败</view>
           <view class="empty-desc">{{ loadErrorText }}</view>
-          <button class="soft-action retry-action" @click="loadRecords">重新加载</button>
+          <button class="soft-action retry-action" @click="refreshTimelineData">重新加载</button>
         </view>
       </view>
       <view v-else-if="noRecords" class="timeline-empty">
@@ -69,7 +69,7 @@
         </view>
       </view>
       <view v-else class="record-list">
-        <view v-for="record in records" :key="record.recordId" class="record-row">
+        <view v-for="record in visibleRecords" :key="record.recordId" class="record-row">
           <view class="record-node"></view>
           <view class="record-content">
             <view class="record-time">{{ record.displayTime }}</view>
@@ -96,6 +96,14 @@
         </view>
       </view>
     </view>
+    <quick-record-sheet
+      :visible="quickRecordSheet.visible"
+      :draft="quickRecordSheet.draft"
+      :submitting="submitting"
+      :mock-voice-enabled="mockVoiceEnabled"
+      @close="closeQuickRecordSheet"
+      @confirm="handleQuickRecordConfirm"
+    />
   </view>
 </template>
 
@@ -110,21 +118,36 @@ import {
 } from '../../services/careRecordService'
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { consumePendingReminderForRecord } from '../../services/reminderService'
+import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
+import {
+  buildManualQuickRecordDraft,
+  buildQuickRecordCareOptions,
+  buildQuickRecordDraftFromReminder
+} from '../../services/quickRecordService'
 
 export default {
   name: 'RecordPage',
+  components: {
+    QuickRecordSheet
+  },
   data() {
     return {
       currentBabyId: '',
+      recordsBabyId: '',
       records: [],
       loading: false,
       loadError: false,
       loadErrorText: '',
+      timelineRequestSeq: 0,
       submitting: false,
       mockVoiceEnabled: isMockVoiceEnabled(),
       pendingReminder: null,
+      quickRecordSheet: {
+        visible: false,
+        draft: null
+      },
       quickTypes: [
         ...CARE_RECORD_TYPES
       ]
@@ -138,67 +161,151 @@ export default {
       return this.currentBabyId ? '当前宝宝已选择' : '未选择宝宝'
     },
     timelineCountText() {
-      return this.records.length ? `${this.records.length}条` : '暂无记录'
+      return this.visibleRecords.length ? `${this.visibleRecords.length}条` : '暂无记录'
+    },
+    visibleRecords() {
+      if (!this.currentBabyId || String(this.recordsBabyId) !== String(this.currentBabyId)) {
+        return []
+      }
+      return this.records
+    },
+    hasVisibleRecords() {
+      return this.visibleRecords.length > 0
+    },
+    isTimelineInitialLoading() {
+      return this.loading && !this.hasVisibleRecords
     },
     noRecords() {
-      return this.records.length === 0
+      return this.visibleRecords.length === 0
     }
   },
   async onShow() {
     this.pendingReminder = consumePendingReminderForRecord()
-    this.currentBabyId = getCurrentBabyId()
-    if (!this.currentBabyId) {
-      this.records = []
-      try {
-        const result = await ensureCurrentBabyId()
-        if (!result.hasBaby) {
-          this.goCreate()
-          return
-        }
-        this.currentBabyId = result.babyId
-      } catch (error) {
-        this.loadErrorText = getErrorMessage(error)
-        this.loadError = true
-        return
-      }
+    await this.refreshTimelineData()
+    this.openPendingReminderSheet()
+  },
+  onLoad() {
+    uni.$on('care-record-created', this.handleCareRecordCreated)
+  },
+  onUnload() {
+    uni.$off('care-record-created', this.handleCareRecordCreated)
+  },
+  async onPullDownRefresh() {
+    try {
+      await this.refreshTimelineData()
+    } finally {
+      uni.stopPullDownRefresh()
     }
-    this.loadRecords()
   },
   methods: {
-    async loadRecords() {
+    async refreshTimelineData() {
+      const requestSeq = this.timelineRequestSeq + 1
+      this.timelineRequestSeq = requestSeq
+      this.currentBabyId = getCurrentBabyId()
+      if (!this.currentBabyId) {
+        this.recordsBabyId = ''
+        this.records = []
+        this.loadError = false
+        try {
+          const result = await ensureCurrentBabyId()
+          if (requestSeq !== this.timelineRequestSeq) {
+            return
+          }
+          if (!result.hasBaby) {
+            this.goCreate()
+            return
+          }
+          this.currentBabyId = result.babyId
+        } catch (error) {
+          this.loadErrorText = getErrorMessage(error)
+          this.loadError = true
+          return
+        }
+      }
+      const targetBabyId = this.currentBabyId
       this.loading = true
       this.loadError = false
       try {
-        this.records = await fetchCareRecordList({
-          babyId: this.currentBabyId,
+        const records = await fetchCareRecordList({
+          babyId: targetBabyId,
           date: getTodayDateString()
         })
+        if (requestSeq !== this.timelineRequestSeq || String(targetBabyId) !== String(this.currentBabyId)) {
+          return
+        }
+        this.records = records
+        this.recordsBabyId = targetBabyId
       } catch (error) {
-        this.records = []
+        if (requestSeq !== this.timelineRequestSeq || String(targetBabyId) !== String(this.currentBabyId)) {
+          return
+        }
         this.loadErrorText = getErrorMessage(error)
         this.loadError = true
       } finally {
-        this.loading = false
+        if (requestSeq === this.timelineRequestSeq) {
+          this.loading = false
+        }
       }
     },
-    async handleQuickRecord(item) {
+    handleQuickRecord(item) {
       if (this.submitting || !this.currentBabyId) {
         return
       }
-      const reminderOptions = this.buildReminderRecordOptions(item)
+      const draft = buildManualQuickRecordDraft(this.currentBabyId, item)
+      if (!draft) {
+        return
+      }
+      this.quickRecordSheet = {
+        visible: true,
+        draft
+      }
+    },
+    openPendingReminderSheet() {
+      if (!this.pendingReminder || !this.currentBabyId) {
+        return
+      }
+      const draft = buildQuickRecordDraftFromReminder(this.pendingReminder, this.currentBabyId)
+      if (!draft) {
+        return
+      }
+      this.quickRecordSheet = {
+        visible: true,
+        draft
+      }
+    },
+    closeQuickRecordSheet() {
+      this.quickRecordSheet = {
+        visible: false,
+        draft: null
+      }
+    },
+    async handleQuickRecordConfirm(result) {
+      const draft = this.quickRecordSheet.draft
+      if (this.submitting || !draft || !this.currentBabyId) {
+        return
+      }
+      if (String(draft.babyId) !== String(this.currentBabyId)) {
+        uni.showToast({
+          title: '提醒不属于当前宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      const options = buildQuickRecordCareOptions(draft, result)
       this.submitting = true
       try {
-        await createQuickCareRecord(this.currentBabyId, item.recordType, reminderOptions)
+        await createQuickCareRecord(this.currentBabyId, draft.recordType, options)
         uni.$emit('care-record-created', {
           babyId: this.currentBabyId,
-          reminderInstanceId: reminderOptions.reminderInstanceId || null
+          reminderInstanceId: options.reminderInstanceId || null
         })
         this.pendingReminder = null
+        this.closeQuickRecordSheet()
         uni.showToast({
           title: '已记录',
           icon: 'success'
         })
-        await this.loadRecords()
+        await this.refreshTimelineData()
       } catch (error) {
         uni.showToast({
           title: error.msg || '记录失败',
@@ -208,22 +315,8 @@ export default {
         this.submitting = false
       }
     },
-    buildReminderRecordOptions(item) {
-      if (!this.pendingReminder || !this.pendingReminder.reminderInstanceId) {
-        return {}
-      }
-      if (String(this.pendingReminder.babyId) !== String(this.currentBabyId)) {
-        return {}
-      }
-      if (this.pendingReminder.recordType !== item.recordType) {
-        return {}
-      }
-      return {
-        reminderInstanceId: this.pendingReminder.reminderInstanceId
-      }
-    },
     getTypeCount(recordType) {
-      return getRecordListTypeCountText(this.records, recordType)
+      return getRecordListTypeCountText(this.visibleRecords, recordType)
     },
     goVoice() {
       if (!this.mockVoiceEnabled) {
@@ -241,6 +334,15 @@ export default {
       uni.navigateTo({
         url: '/pages/baby/create'
       })
+    },
+    handleCareRecordCreated(payload) {
+      if (this.submitting) {
+        return
+      }
+      const currentBabyId = getCurrentBabyId()
+      if (!payload || !payload.babyId || String(payload.babyId) === String(currentBabyId)) {
+        this.refreshTimelineData()
+      }
     }
   }
 }
