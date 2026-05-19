@@ -1,21 +1,18 @@
 <template>
   <view class="reminder-page">
-    <view class="reminder-hero">
+    <view class="reminder-flow-header">
       <view class="baby-pill">{{ babyPillText }}</view>
-      <view class="page-title">未处理提醒</view>
-      <view class="page-desc">这里处理今天已经到点、但还没有记录的照护提醒。</view>
     </view>
 
-    <view class="section-card">
-      <view class="section-title">待补处理</view>
-      <view v-if="loading" class="empty-reminder">
+    <view class="reminder-flow-section">
+      <view v-if="loading" class="empty-reminder flow-state-card">
         <view class="reminder-icon">铃</view>
         <view>
           <view class="empty-title">正在加载提醒</view>
           <view class="empty-desc">请稍候。</view>
         </view>
       </view>
-      <view v-else-if="loadError" class="empty-reminder">
+      <view v-else-if="loadError" class="empty-reminder flow-state-card">
         <view class="reminder-icon">铃</view>
         <view>
           <view class="empty-title">提醒加载失败</view>
@@ -23,14 +20,13 @@
           <button class="soft-action retry-action" @click="loadReminders">重新加载</button>
         </view>
       </view>
-      <view v-else-if="noReminders" class="empty-reminder">
+      <view v-else-if="noReminders" class="empty-reminder flow-state-card">
         <view class="reminder-icon">铃</view>
         <view>
-          <view class="empty-title">暂无需要补处理的提醒</view>
-          <view class="empty-desc">当前护理节奏请回到今日页查看。</view>
+          <view class="empty-title">现在没有需要处理的提醒</view>
         </view>
       </view>
-      <view v-else class="compensation-stack">
+      <view v-else class="reminder-card-flow">
         <reminder-card
           v-for="item in reminders"
           :key="item.reminderInstanceId || item.id"
@@ -42,39 +38,6 @@
       </view>
     </view>
 
-    <view class="section-card">
-      <view class="section-title">补偿概览</view>
-      <view class="reminder-grid">
-        <view
-          v-for="item in visibleTypeSummaries"
-          :key="item.careType"
-          class="type-card"
-          :class="item.typeClass"
-        >
-          <view class="type-icon">{{ item.iconText }}</view>
-          <view class="type-title">{{ item.label }}</view>
-          <view class="type-desc">{{ item.countText }}</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="section-card">
-      <view class="section-title">提醒设置</view>
-      <view class="setting-row">
-        <view>
-          <view class="setting-title">订阅消息</view>
-          <view class="empty-desc">用于后续提醒通知授权，不影响当前页面使用。</view>
-        </view>
-        <button class="subscribe-action" @click="handleReminderSubscribe">接收提醒</button>
-      </view>
-      <view class="setting-row plan-link">
-        <view>
-          <view class="setting-title">护理节奏</view>
-          <view class="empty-desc">配置提醒时间请到计划页，本页只处理已到点未记录的提醒。</view>
-        </view>
-        <button class="subscribe-action secondary" @click="goPlan">去设置</button>
-      </view>
-    </view>
     <quick-record-sheet
       :visible="quickRecordSheet.visible"
       :draft="quickRecordSheet.draft"
@@ -88,7 +51,6 @@
 
 <script>
 import {
-  buildReminderTypeSummaries,
   buildReminderQueueWindow,
   queryReminderInstances
 } from '../../services/reminderService'
@@ -96,7 +58,6 @@ import { createQuickCareRecord } from '../../services/careRecordService'
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
-import { requestReminderSubscribe } from '../../utils/subscribe'
 import { isMockVoiceEnabled } from '../../config/env'
 import ReminderCard from '../../components/ReminderCard.vue'
 import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
@@ -104,12 +65,6 @@ import {
   buildQuickRecordCareOptions,
   buildQuickRecordDraftFromReminder
 } from '../../services/quickRecordService'
-
-function buildTypeSummaryViewModels(reminders) {
-  return buildReminderTypeSummaries(reminders).map(item => ({
-    ...item
-  }))
-}
 
 export default {
   name: 'ReminderPage',
@@ -129,14 +84,10 @@ export default {
         visible: false,
         draft: null
       },
-      reminders: [],
-      typeSummaries: buildTypeSummaryViewModels([])
+      reminders: []
     }
   },
   computed: {
-    visibleTypeSummaries() {
-      return this.typeSummaries.filter((item) => item.countText !== '暂无提醒')
-    },
     babyPillText() {
       return this.currentBabyId ? '当前宝宝已选择' : '未选择宝宝'
     },
@@ -148,7 +99,6 @@ export default {
     this.currentBabyId = getCurrentBabyId()
     if (!this.currentBabyId) {
       this.reminders = []
-      this.typeSummaries = buildTypeSummaryViewModels([])
       try {
         const result = await ensureCurrentBabyId()
         if (!result.hasBaby) {
@@ -185,20 +135,13 @@ export default {
         const query = buildReminderQueueWindow()
         const reminders = await queryReminderInstances(this.currentBabyId, query)
         this.reminders = reminders
-        this.typeSummaries = buildTypeSummaryViewModels(reminders)
       } catch (error) {
         this.reminders = []
-        this.typeSummaries = buildTypeSummaryViewModels([])
         this.loadErrorText = getErrorMessage(error)
         this.loadError = true
       } finally {
         this.loading = false
       }
-    },
-    goPlan() {
-      uni.navigateTo({
-        url: '/pages/plan/index'
-      })
     },
     handleGoRecord(reminder) {
       const draft = buildQuickRecordDraftFromReminder(reminder, this.currentBabyId)
@@ -284,29 +227,6 @@ export default {
       uni.navigateTo({
         url: '/pages/baby/create'
       })
-    },
-    async handleReminderSubscribe() {
-      const result = await requestReminderSubscribe('reminder_enable')
-      this.showSubscribeHint(result)
-    },
-    showSubscribeHint(result) {
-      if (!result || result.status === 'throttled') {
-        return
-      }
-
-      const titleMap = {
-        accepted: '已开启提醒通知',
-        rejected: '未开启通知，不影响继续使用',
-        failed: '通知授权失败，不影响继续使用',
-        unsupported: '当前环境不支持订阅授权',
-        unconfigured: '订阅模板待配置',
-        unknown: '授权结果待确认'
-      }
-
-      uni.showToast({
-        title: titleMap[result.status] || '通知授权未完成',
-        icon: 'none'
-      })
     }
   }
 }
@@ -320,8 +240,8 @@ export default {
   background: #f7f6f2;
 }
 
-.reminder-hero {
-  padding: 16rpx 6rpx 28rpx;
+.reminder-flow-header {
+  padding: 14rpx 4rpx 26rpx;
 }
 
 .baby-pill {
@@ -334,37 +254,8 @@ export default {
   font-size: 22rpx;
 }
 
-.page-title {
-  margin-top: 18rpx;
-  color: #1f2329;
-  font-size: 40rpx;
-  font-weight: 700;
-}
-
-.page-desc {
-  margin-top: 8rpx;
-  color: #69707a;
-  font-size: 24rpx;
-  line-height: 1.6;
-}
-
-.section-card {
-  margin-bottom: 20rpx;
-  padding: 26rpx 24rpx;
-  border-radius: 20rpx;
-  background: #ffffff;
-  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
-}
-
-.next-card {
-  border: 1rpx solid #f3d8bf;
-  box-shadow: 0 12rpx 28rpx rgba(242, 140, 56, 0.08);
-}
-
-.section-title {
-  color: #1f2329;
-  font-size: 30rpx;
-  font-weight: 700;
+.reminder-flow-section {
+  margin-bottom: 28rpx;
 }
 
 .empty-reminder {
@@ -375,6 +266,11 @@ export default {
   border: 1rpx solid #eceff3;
   border-radius: 18rpx;
   background: #f8f9fb;
+}
+
+.flow-state-card {
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
 }
 
 .retry-action {
@@ -401,31 +297,17 @@ export default {
   font-weight: 700;
 }
 
-.empty-title,
-.type-title,
-.setting-title {
+.empty-title {
   color: #1f2329;
   font-size: 27rpx;
   font-weight: 700;
 }
 
-.next-card .empty-title {
-  font-size: 31rpx;
-}
-
-.empty-desc,
-.type-desc {
+.empty-desc {
   margin-top: 8rpx;
   color: #69707a;
   font-size: 23rpx;
   line-height: 1.5;
-}
-
-.action-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18rpx;
-  margin-top: 24rpx;
 }
 
 .soft-action {
@@ -449,107 +331,9 @@ export default {
   font-weight: 750;
 }
 
-.plan-action {
-  border-color: #eceff3;
-  background: #ffffff;
-}
-
-.reminder-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14rpx;
-  margin-top: 22rpx;
-}
-
-.type-card {
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: 150rpx;
-  padding: 22rpx 16rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #ffffff;
-  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.04);
-  transition: transform 0.12s ease, background-color 0.12s ease;
-}
-
-.type-card:active {
-  border-color: #f3d8bf;
-  background: #fff8f2;
-  transform: scale(0.98);
-}
-
-.type-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48rpx;
-  height: 48rpx;
-  margin-bottom: 14rpx;
-  border-radius: 50%;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-
-.feeding .type-icon {
-  background: #fff5ec;
-  color: #c96a16;
-}
-
-.sleep .type-icon {
-  background: #f2e7ff;
-  color: #8d6bd1;
-}
-
-.care .type-icon {
-  background: #e8f7ec;
-  color: #62a66d;
-}
-
-.play .type-icon {
-  background: #edf3ff;
-  color: #6a8ccf;
-}
-
-.basic-care .type-icon {
-  background: #e8f7ec;
-  color: #62a66d;
-}
-
-.interaction .type-icon {
-  background: #edf3ff;
-  color: #6a8ccf;
-}
-
-.compensation-stack {
+.reminder-card-flow {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
-  margin-top: 20rpx;
-}
-
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 22rpx;
-}
-
-.subscribe-action {
-  box-sizing: border-box;
-  min-width: 132rpx;
-  padding: 12rpx 20rpx;
-  border-radius: 999rpx;
-  border: 2rpx solid #d96f1f;
-  background: #e8792a;
-  color: #ffffff;
-  font-size: 23rpx;
-  font-weight: 800;
-  line-height: 1.5;
-}
-
-.subscribe-action.secondary {
-  background: #ffffff;
-  color: #9f4e12;
+  gap: 26rpx;
 }
 </style>
