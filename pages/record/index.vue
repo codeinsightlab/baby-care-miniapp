@@ -109,6 +109,7 @@ import {
   getTodayDateString
 } from '../../services/careRecordService'
 import { ensureCurrentBabyId } from '../../services/babyService'
+import { consumePendingReminderForRecord } from '../../services/reminderService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
 
@@ -123,6 +124,7 @@ export default {
       loadErrorText: '',
       submitting: false,
       mockVoiceEnabled: isMockVoiceEnabled(),
+      pendingReminder: null,
       quickTypes: [
         ...CARE_RECORD_TYPES
       ]
@@ -143,6 +145,7 @@ export default {
     }
   },
   async onShow() {
+    this.pendingReminder = consumePendingReminderForRecord()
     this.currentBabyId = getCurrentBabyId()
     if (!this.currentBabyId) {
       this.records = []
@@ -182,9 +185,15 @@ export default {
       if (this.submitting || !this.currentBabyId) {
         return
       }
+      const reminderOptions = this.buildReminderRecordOptions(item)
       this.submitting = true
       try {
-        await createQuickCareRecord(this.currentBabyId, item.recordType)
+        await createQuickCareRecord(this.currentBabyId, item.recordType, reminderOptions)
+        uni.$emit('care-record-created', {
+          babyId: this.currentBabyId,
+          reminderInstanceId: reminderOptions.reminderInstanceId || null
+        })
+        this.pendingReminder = null
         uni.showToast({
           title: '已记录',
           icon: 'success'
@@ -197,6 +206,20 @@ export default {
         })
       } finally {
         this.submitting = false
+      }
+    },
+    buildReminderRecordOptions(item) {
+      if (!this.pendingReminder || !this.pendingReminder.reminderInstanceId) {
+        return {}
+      }
+      if (String(this.pendingReminder.babyId) !== String(this.currentBabyId)) {
+        return {}
+      }
+      if (this.pendingReminder.recordType !== item.recordType) {
+        return {}
+      }
+      return {
+        reminderInstanceId: this.pendingReminder.reminderInstanceId
       }
     },
     getTypeCount(recordType) {

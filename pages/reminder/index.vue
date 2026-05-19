@@ -23,13 +23,12 @@
           <button class="soft-action retry-action" @click="loadReminders">重新加载</button>
         </view>
       </view>
-      <view v-else-if="nextReminder" class="empty-reminder">
-        <view class="reminder-icon">铃</view>
-        <view>
-          <view class="empty-title">{{ nextReminder.careTypeLabel }} · {{ nextReminder.displayTime }}</view>
-          <view class="empty-desc">{{ nextReminder.remark }}</view>
-        </view>
-      </view>
+      <today-pending-card
+        v-else-if="nextReminder"
+        :reminder="nextReminder"
+        compact
+        @go-record="handleGoRecord"
+      />
       <view v-else class="empty-reminder">
         <view class="reminder-icon">铃</view>
         <view>
@@ -37,9 +36,8 @@
           <view class="empty-desc">新的待执行提醒将由提醒实例生成后展示。</view>
         </view>
       </view>
-      <view class="action-row" :class="{ triple: nextReminder }">
+      <view class="action-row">
         <button class="soft-action plan-action" @click="goPlan">照护计划</button>
-        <button v-if="nextReminder" class="primary-action" :disabled="true">去记录</button>
         <button class="soft-action" :disabled="true">稍后提醒</button>
       </view>
     </view>
@@ -53,7 +51,7 @@
           class="type-card"
           :class="item.typeClass"
         >
-          <view class="type-icon">{{ item.typeIcon }}</view>
+          <view class="type-icon">{{ item.iconText }}</view>
           <view class="type-title">{{ item.label }}提醒</view>
           <view class="type-desc">{{ item.countText }}</view>
         </view>
@@ -70,14 +68,11 @@
           class="reminder-row"
           :class="{ faded: index > 0 }"
         >
-          <view>
-            <view class="setting-title">{{ item.careTypeLabel }} · {{ item.displayTime }}</view>
-            <view class="empty-desc">{{ item.statusLabel }} · {{ item.remark }}</view>
-          </view>
-          <view class="row-actions">
-            <button class="mini-action" :disabled="true">去记录</button>
-            <button class="mini-action soft-mini" :disabled="true">稍后</button>
-          </view>
+          <today-pending-card
+            :reminder="item"
+            compact
+            @go-record="handleGoRecord"
+          />
         </view>
       </view>
     </view>
@@ -98,28 +93,26 @@
 <script>
 import {
   buildReminderTypeSummaries,
-  fetchReminderList,
+  savePendingReminderForRecord,
   fetchTodayReminders
 } from '../../services/reminderService'
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
 import { requestReminderSubscribe } from '../../utils/subscribe'
-
-function normalizeCareTypeClass(careType) {
-  return String(careType || '').toLowerCase().replace(/_/g, '-')
-}
+import TodayPendingCard from '../../components/TodayPendingCard.vue'
 
 function buildTypeSummaryViewModels(reminders) {
   return buildReminderTypeSummaries(reminders).map(item => ({
-    ...item,
-    typeClass: normalizeCareTypeClass(item.careType),
-    typeIcon: String(item.label || '').slice(0, 1)
+    ...item
   }))
 }
 
 export default {
   name: 'ReminderPage',
+  components: {
+    TodayPendingCard
+  },
   data() {
     return {
       currentBabyId: '',
@@ -164,16 +157,28 @@ export default {
     }
     this.loadReminders()
   },
+  onLoad() {
+    uni.$on('care-record-created', this.handleCareRecordCreated)
+  },
+  onUnload() {
+    uni.$off('care-record-created', this.handleCareRecordCreated)
+  },
+  async onPullDownRefresh() {
+    try {
+      await this.loadReminders()
+    } finally {
+      uni.stopPullDownRefresh()
+    }
+  },
   methods: {
     async loadReminders() {
       this.loading = true
       this.loadError = false
       try {
         const today = await fetchTodayReminders(this.currentBabyId)
-        const list = await fetchReminderList(this.currentBabyId)
         this.todayReminders = today
-        this.reminders = list
-        this.typeSummaries = buildTypeSummaryViewModels(list)
+        this.reminders = today
+        this.typeSummaries = buildTypeSummaryViewModels(today)
       } catch (error) {
         this.todayReminders = []
         this.reminders = []
@@ -188,6 +193,17 @@ export default {
       uni.navigateTo({
         url: '/pages/plan/index'
       })
+    },
+    handleGoRecord(reminder) {
+      savePendingReminderForRecord(reminder)
+      uni.switchTab({
+        url: '/pages/record/index'
+      })
+    },
+    handleCareRecordCreated(payload) {
+      if (!payload || !payload.babyId || String(payload.babyId) === String(this.currentBabyId)) {
+        this.loadReminders()
+      }
     },
     goCreate() {
       uni.navigateTo({
@@ -335,11 +351,6 @@ export default {
   margin-top: 24rpx;
 }
 
-.action-row.triple {
-  grid-template-columns: 1fr 1fr;
-}
-
-.primary-action,
 .soft-action {
   box-sizing: border-box;
   width: 100%;
@@ -352,12 +363,6 @@ export default {
   font-size: 25rpx;
   line-height: 82rpx;
   white-space: nowrap;
-}
-
-.primary-action {
-  background: #f28c38;
-  color: #ffffff;
-  box-shadow: 0 8rpx 18rpx rgba(242, 140, 56, 0.18);
 }
 
 .soft-action {
@@ -443,9 +448,7 @@ export default {
 }
 
 .reminder-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: block;
   padding: 18rpx 0;
   border-bottom: 1rpx solid #eceff3;
 }
@@ -461,30 +464,6 @@ export default {
 
 .reminder-row:last-child {
   border-bottom: 0;
-}
-
-.row-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 10rpx;
-  margin-left: 16rpx;
-}
-
-.mini-action {
-  box-sizing: border-box;
-  padding: 8rpx 16rpx;
-  border: 1rpx solid #f3d8bf;
-  border-radius: 999rpx;
-  background: #fff5ec;
-  color: #c96a16;
-  font-size: 22rpx;
-  line-height: 1.5;
-}
-
-.soft-mini {
-  border-color: #eceff3;
-  background: #ffffff;
-  color: #69707a;
 }
 
 .list-empty {

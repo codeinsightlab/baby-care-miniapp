@@ -83,21 +83,7 @@
               :key="item.reminderInstanceId || item.id"
               class="pending-swiper-item"
             >
-              <view class="pending-main-card">
-                <view class="pending-card-top">
-                  <view class="reminder-mini-type">{{ item.careTypeLabel }}</view>
-                  <view class="pending-task-status">待执行</view>
-                </view>
-                <view class="pending-card-body">
-                  <view class="pending-time">{{ item.displayTime }}</view>
-                  <view class="pending-title">{{ item.templateName }}</view>
-                  <view class="pending-desc">{{ item.remark }}</view>
-                </view>
-                <view class="pending-actions">
-                  <button class="pending-action primary" :disabled="true">去记录</button>
-                  <button class="pending-action soft" :disabled="true">稍后</button>
-                </view>
-              </view>
+              <today-pending-card :reminder="item" @go-record="handleGoRecord" />
             </swiper-item>
           </swiper>
         </view>
@@ -143,8 +129,9 @@
 import { ensureCurrentBabyId, fetchBabyDetail } from '../../services/babyService'
 import { fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
 import { ensureSilentLogin } from '../../services/loginService'
-import { fetchTodayReminders } from '../../services/reminderService'
+import { fetchTodayReminders, savePendingReminderForRecord } from '../../services/reminderService'
 import { fetchTodayTimelineEvents } from '../../services/timelineService'
+import TodayPendingCard from '../../components/TodayPendingCard.vue'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError, shouldClearCurrentBabyId } from '../../utils/errorClassifier'
@@ -171,6 +158,9 @@ function createRefreshingState() {
 
 export default {
   name: 'TodayPage',
+  components: {
+    TodayPendingCard
+  },
   data() {
     return {
       pageInitializing: true,
@@ -255,6 +245,19 @@ export default {
   },
   onShow() {
     this.refreshTodayData()
+  },
+  onLoad() {
+    uni.$on('care-record-created', this.handleCareRecordCreated)
+  },
+  onUnload() {
+    uni.$off('care-record-created', this.handleCareRecordCreated)
+  },
+  async onPullDownRefresh() {
+    try {
+      await this.refreshTodayData()
+    } finally {
+      uni.stopPullDownRefresh()
+    }
   },
   methods: {
     async refreshTodayData() {
@@ -404,7 +407,18 @@ export default {
       if (!reminder) {
         return false
       }
-      return reminder.status !== 'DONE' && reminder.status !== 'CANCELED'
+      return reminder.status === 'PENDING' || reminder.status === 'SNOOZED'
+    },
+    handleGoRecord(reminder) {
+      savePendingReminderForRecord(reminder)
+      uni.switchTab({
+        url: '/pages/record/index'
+      })
+    },
+    handleCareRecordCreated(payload) {
+      if (!payload || !payload.babyId || String(payload.babyId) === String(getCurrentBabyId())) {
+        this.refreshTodayData()
+      }
     },
     getSafePendingIndex(count) {
       if (!count || this.activePendingIndex >= count) {
@@ -730,79 +744,10 @@ export default {
   padding: 0 2rpx 10rpx;
 }
 
-.pending-main-card {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-height: 326rpx;
-  box-sizing: border-box;
-  padding: 30rpx 28rpx 26rpx;
-  border: 1rpx solid #f3d8bf;
-  border-left: 8rpx solid #f28c38;
-  border-radius: 24rpx;
-  background: #fff9f3;
-  box-shadow: 0 14rpx 30rpx rgba(242, 140, 56, 0.11);
-}
-
-.pending-card-top,
-.pending-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.reminder-mini-type {
-  display: inline-flex;
-  margin-bottom: 6rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-  background: #fff5ec;
-  color: #c96a16;
-  font-size: 21rpx;
-  font-weight: 600;
-}
-
 .pending-header-meta {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-}
-
-.pending-task-status {
-  color: #b9855b;
-  font-size: 21rpx;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.pending-card-body {
-  flex: 1;
-  margin-top: 6rpx;
-}
-
-.pending-time {
-  margin-top: 4rpx;
-  color: #1f2329;
-  font-size: 38rpx;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.pending-title {
-  margin-top: 10rpx;
-  color: #1f2329;
-  font-size: 29rpx;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.pending-desc {
-  margin-top: 8rpx;
-  color: #69707a;
-  font-size: 24rpx;
-  line-height: 1.45;
-  word-break: break-all;
 }
 
 .pending-indicator {
@@ -824,40 +769,6 @@ export default {
   width: 22rpx;
   background: #f28c38;
   opacity: 1;
-}
-
-.pending-actions {
-  margin-top: 18rpx;
-  gap: 16rpx;
-}
-
-.pending-action {
-  flex: 1;
-  height: 64rpx;
-  margin: 0;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 700;
-  line-height: 64rpx;
-}
-
-.pending-action::after {
-  border: 0;
-}
-
-.pending-action.primary {
-  background: #f28c38;
-  color: #ffffff;
-}
-
-.pending-action.soft {
-  border: 1rpx solid #f3d8bf;
-  background: #ffffff;
-  color: #c96a16;
-}
-
-.pending-action[disabled] {
-  opacity: 0.55;
 }
 
 .section-header {

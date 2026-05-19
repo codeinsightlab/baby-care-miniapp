@@ -5,7 +5,8 @@ export const CARE_RECORD_TYPES = [
   { recordType: 'FEEDING', label: '喂奶', quickLabel: '记录喂奶', defaultRemark: '记录喂奶' },
   { recordType: 'SLEEP', label: '睡眠', quickLabel: '记录睡眠', defaultRemark: '记录睡眠' },
   { recordType: 'DIAPER', label: '换尿布', quickLabel: '记录换尿布', defaultRemark: '记录换尿布' },
-  { recordType: 'BASIC_CARE', label: '护理', quickLabel: '记录护理', defaultRemark: '记录护理' }
+  { recordType: 'BASIC_CARE', label: '护理', quickLabel: '记录护理', defaultRemark: '记录护理' },
+  { recordType: 'INTERACTION', label: '互动', quickLabel: '记录互动', defaultRemark: '记录互动' }
 ]
 
 const recordTypeLabels = CARE_RECORD_TYPES.reduce((result, item) => {
@@ -101,12 +102,16 @@ export async function fetchCareRecordList(params) {
     .filter(Boolean)
 }
 
-export function createQuickCareRecord(babyId, recordType) {
+export function createQuickCareRecord(babyId, recordType, options = {}) {
   const type = CARE_RECORD_TYPES.find((item) => item.recordType === recordType)
-  return createCareRecord({
+  const payload = {
     babyId,
     recordType,
     recordTime: formatDateTime(new Date()),
     remark: type ? type.defaultRemark : getRecordTypeLabel(recordType)
-  })
+  }
+  if (options.reminderInstanceId) {
+    payload.reminderInstanceId = options.reminderInstanceId
+  }
+  return createCareRecord(payload)
 }

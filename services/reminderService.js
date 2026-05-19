@@ -1,20 +1,16 @@
+import { getTodayReminderInstances } from '../api/reminder'
+import { buildCareTypeSummaries, getCareTypeMeta } from '../constants/careTypeMeta'
 import { sanitizeVisibleText } from './textSanitizer'
 
 const statusLabels = {
   PENDING: '待提醒',
-  SENT: '已发送',
-  DONE: '已完成',
   SNOOZED: '稍后提醒',
-  FAILED: '发送失败',
-  CANCELED: '已取消'
+  RECORDED: '已记录',
+  SKIPPED: '已跳过',
+  EXPIRED: '已过期'
 }
 
-const careTypeLabels = {
-  FEEDING: '喂养',
-  SLEEP: '睡眠',
-  BASIC_CARE: '基础护理',
-  INTERACTION: '运动与认知'
-}
+const pendingReminderRecordStorageKey = 'BC_PENDING_REMINDER_RECORD_CONTEXT'
 
 function formatTime(value) {
   if (!value) {
@@ -32,22 +28,29 @@ export function toReminderViewModel(raw) {
     return null
   }
   const status = raw.status || raw.todayStatus || 'PENDING'
+  const meta = getCareTypeMeta(raw.careType)
   return {
     reminderInstanceId: raw.reminderInstanceId,
     babyId: raw.babyId,
     planTemplateId: raw.planTemplateId,
-    templateName: sanitizeVisibleText(raw.templateName || '提醒'),
+    templateName: sanitizeVisibleText(raw.templateName || raw.title || '提醒'),
     careType: raw.careType,
-    careTypeLabel: raw.careTypeLabel || careTypeLabels[raw.careType] || '提醒',
+    careTypeLabel: raw.careTypeLabel || meta.label,
+    careTypeMeta: meta,
+    recordType: raw.recordType || meta.recordType,
+    quickActionText: meta.quickActionText,
     reminderTime: raw.reminderTime || '',
-    scheduledTime: raw.scheduledTime || '',
-    displayTime: formatTime(raw.scheduledTime || raw.reminderTime),
+    scheduledTime: raw.scheduledTime || raw.dueAt || '',
+    dueAt: raw.dueAt || '',
+    urgency: raw.urgency || 'upcoming',
+    displayTime: raw.displayTime || formatTime(raw.scheduledTime || raw.dueAt || raw.reminderTime),
     enabled: raw.enabled,
     status,
     statusLabel: raw.statusLabel || raw.todayStatusLabel || statusLabels[status] || status,
     todayStatus: raw.todayStatus || status,
     todayStatusLabel: raw.todayStatusLabel || statusLabels[raw.todayStatus] || statusLabels[status] || status,
-    remark: sanitizeVisibleText(raw.remark || raw.templateName || '提醒')
+    defaultRecordContext: raw.defaultRecordContext || '',
+    remark: sanitizeVisibleText(raw.remark || raw.templateName || raw.title || '提醒')
   }
 }
 
@@ -61,23 +64,38 @@ export async function fetchReminderList(babyId) {
   if (!babyId) {
     return []
   }
-  return []
+  return fetchTodayReminders(babyId)
 }
 
 export async function fetchTodayReminders(babyId) {
   if (!babyId) {
     return []
   }
-  return []
+  const response = await getTodayReminderInstances(babyId)
+  return toReminderList(response)
+}
+
+export function savePendingReminderForRecord(reminder) {
+  if (!reminder || !reminder.reminderInstanceId) {
+    return
+  }
+  uni.setStorageSync(pendingReminderRecordStorageKey, {
+    reminderInstanceId: reminder.reminderInstanceId,
+    babyId: reminder.babyId,
+    planTemplateId: reminder.planTemplateId,
+    careType: reminder.careType,
+    recordType: reminder.recordType,
+    title: reminder.templateName,
+    defaultRecordContext: reminder.defaultRecordContext || ''
+  })
+}
+
+export function consumePendingReminderForRecord() {
+  const value = uni.getStorageSync(pendingReminderRecordStorageKey)
+  uni.removeStorageSync(pendingReminderRecordStorageKey)
+  return value || null
 }
 
 export function buildReminderTypeSummaries(reminders) {
-  return Object.keys(careTypeLabels).map((careType) => {
-    const items = (Array.isArray(reminders) ? reminders : []).filter((item) => item.careType === careType)
-    return {
-      careType,
-      label: careTypeLabels[careType],
-      countText: items.length ? `${items.length}个提醒` : '暂无提醒'
-    }
-  })
+  return buildCareTypeSummaries(reminders)
 }
