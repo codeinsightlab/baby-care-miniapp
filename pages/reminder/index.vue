@@ -28,6 +28,7 @@
         :reminder="nextReminder"
         compact
         @go-record="handleGoRecord"
+        @snooze="handleSnoozeReminder"
       />
       <view v-else class="empty-reminder">
         <view class="reminder-icon">铃</view>
@@ -72,6 +73,7 @@
             :reminder="item"
             compact
             @go-record="handleGoRecord"
+            @snooze="handleSnoozeReminder"
           />
         </view>
       </view>
@@ -94,7 +96,8 @@
 import {
   buildReminderTypeSummaries,
   savePendingReminderForRecord,
-  fetchTodayReminders
+  buildReminderQueueWindow,
+  queryReminderInstances
 } from '../../services/reminderService'
 import { ensureCurrentBabyId } from '../../services/babyService'
 import { getCurrentBabyId } from '../../utils/currentBaby'
@@ -175,10 +178,11 @@ export default {
       this.loading = true
       this.loadError = false
       try {
-        const today = await fetchTodayReminders(this.currentBabyId)
-        this.todayReminders = today
-        this.reminders = today
-        this.typeSummaries = buildTypeSummaryViewModels(today)
+        const query = buildReminderQueueWindow()
+        const reminders = await queryReminderInstances(this.currentBabyId, query)
+        this.todayReminders = reminders
+        this.reminders = reminders
+        this.typeSummaries = buildTypeSummaryViewModels(reminders)
       } catch (error) {
         this.todayReminders = []
         this.reminders = []
@@ -198,6 +202,16 @@ export default {
       savePendingReminderForRecord(reminder)
       uni.switchTab({
         url: '/pages/record/index'
+      })
+    },
+    handleSnoozeReminder(reminder) {
+      if (!reminder) {
+        return
+      }
+      uni.showToast({
+        title: '稍后提醒功能暂未接入',
+        icon: 'none',
+        duration: 1500
       })
     },
     handleCareRecordCreated(payload) {

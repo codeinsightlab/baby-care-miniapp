@@ -83,7 +83,7 @@
               :key="item.reminderInstanceId || item.id"
               class="pending-swiper-item"
             >
-              <today-pending-card :reminder="item" @go-record="handleGoRecord" />
+              <today-pending-card :reminder="item" @go-record="handleGoRecord" @snooze="handleSnoozeReminder" />
             </swiper-item>
           </swiper>
         </view>
@@ -407,18 +407,7 @@ export default {
       if (!reminder) {
         return false
       }
-      return reminder.status === 'PENDING' || reminder.status === 'SNOOZED'
-    },
-    handleGoRecord(reminder) {
-      savePendingReminderForRecord(reminder)
-      uni.switchTab({
-        url: '/pages/record/index'
-      })
-    },
-    handleCareRecordCreated(payload) {
-      if (!payload || !payload.babyId || String(payload.babyId) === String(getCurrentBabyId())) {
-        this.refreshTodayData()
-      }
+      return reminder.status !== 'DONE' && reminder.status !== 'CANCELED'
     },
     getSafePendingIndex(count) {
       if (!count || this.activePendingIndex >= count) {
@@ -437,6 +426,22 @@ export default {
         this.activePendingIndex = current
       }
     },
+    handleGoRecord(reminder) {
+      savePendingReminderForRecord(reminder)
+      uni.switchTab({
+        url: '/pages/record/index'
+      })
+    },
+    handleSnoozeReminder(reminder) {
+      if (!reminder) {
+        return
+      }
+      uni.showToast({
+        title: '稍后提醒功能暂未接入',
+        icon: 'none',
+        duration: 1500
+      })
+    },
     getTypeCount(recordType) {
       return getRecordTypeCountText(this.todaySummary && this.todaySummary.typeCountMap, recordType)
     },
@@ -453,6 +458,11 @@ export default {
       uni.switchTab({
         url: '/pages/baby/index'
       })
+    },
+    handleCareRecordCreated(payload) {
+      if (!payload || !payload.babyId || String(payload.babyId) === String(this.currentBaby && this.currentBaby.babyId)) {
+        this.refreshTodayData()
+      }
     }
   }
 }

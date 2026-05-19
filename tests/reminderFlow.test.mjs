@@ -6,6 +6,20 @@ import vm from 'node:vm'
 const root = resolve(process.cwd())
 const read = (file) => readFileSync(resolve(root, file), 'utf8')
 const plain = (value) => JSON.parse(JSON.stringify(value))
+function parseRequestQuery(urlString) {
+  const url = new URL(urlString, 'https://test.local')
+  return url.searchParams
+}
+
+function formatDateTime(value) {
+  const date = new Date(value)
+  const pad = (num) => String(num).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+const fixedNow = new Date()
+const inWindowDueTime = new Date(fixedNow.getTime() - 10 * 60 * 1000)
+const fixedReminderTime = formatDateTime(inWindowDueTime).slice(-8, 16)
 
 function loadModule(file, context) {
   const source = read(file)
@@ -33,8 +47,8 @@ const context = vm.createContext({
           careType: 'FEEDING',
           careTypeLabel: '喂养',
           title: '晨间喂养',
-          reminderTime: '08:00',
-          dueAt: '2026-05-19 08:00:00',
+          reminderTime: fixedReminderTime.slice(0, 5),
+          dueAt: formatDateTime(inWindowDueTime),
           status: 'PENDING',
           urgency: 'overdue',
           defaultRecordContext: '{"feedingType":"MIXED"}'
@@ -66,13 +80,17 @@ loadModule('api/careRecord.js', context)
 loadModule('services/careRecordService.js', context)
 
 const reminders = await context.fetchTodayReminders(2)
-assert.equal(requests[0].url, '/api/mini/reminder-instance/today?babyId=2')
+const firstQuery = parseRequestQuery(requests[0].url)
+assert.equal(firstQuery.get('babyId'), '2')
+assert.ok(firstQuery.has('startTime'))
+assert.ok(firstQuery.has('endTime'))
+assert.equal(firstQuery.get('status'), 'PENDING,SNOOZED')
 assert.equal(reminders.length, 1)
 assert.equal(reminders[0].reminderInstanceId, 11)
 assert.equal(reminders[0].templateName, '晨间喂养')
 assert.equal(reminders[0].status, 'PENDING')
 assert.equal(reminders[0].urgency, 'overdue')
-assert.equal(reminders[0].displayTime, '08:00')
+assert.equal(reminders[0].displayTime, fixedReminderTime.slice(0, 5))
 
 context.savePendingReminderForRecord(reminders[0])
 const stored = context.consumePendingReminderForRecord()
@@ -99,12 +117,12 @@ const recordSource = read('pages/record/index.vue')
 const reminderSource = read('services/reminderService.js')
 const fetchTodayBody = reminderSource.match(/export async function fetchTodayReminders[\s\S]*?\n}/)[0]
 
-assert.match(todaySource, /<today-pending-card\s+:reminder="item"\s+@go-record="handleGoRecord"\s+\/>/)
+assert.match(todaySource, /<today-pending-card\s+:reminder="item"\s+@go-record="handleGoRecord"(?:\s+@snooze="[^"]+")?\s*\/>/)
 assert.match(todaySource, /savePendingReminderForRecord\(reminder\)/)
 assert.match(recordSource, /consumePendingReminderForRecord\(\)/)
 assert.match(recordSource, /reminderInstanceId: this\.pendingReminder\.reminderInstanceId/)
-assert.match(fetchTodayBody, /getTodayReminderInstances\(babyId\)/)
-assert.match(fetchTodayBody, /toReminderList\(response\)/)
+assert.match(fetchTodayBody, /queryReminderInstances\(babyId,\s*query\)/)
+assert.match(fetchTodayBody, /buildTodayPendingWindow\(\)/)
 assert.doesNotMatch(reminderSource, /bc_reminder_node|bc_reminder_log|reminderNode|reminderLog/)
 
 console.log('reminder flow miniapp regression tests passed')
