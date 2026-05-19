@@ -3,33 +3,17 @@
     <view class="record-hero">
       <view class="baby-pill">{{ babyPillText }}</view>
       <view class="record-title">记录</view>
-      <view class="record-desc">按当前宝宝记录今日照护，保存后会同步到今日汇总。</view>
+      <view class="record-desc">查看宝宝已经发生的护理事实，按时间回看备注和记录来源。</view>
     </view>
 
-    <view class="summary-card">
-      <view class="section-title">今日记录情况</view>
-      <view class="summary-grid">
-        <view class="summary-item feeding">
-          <view class="summary-icon">奶</view>
-          <view class="summary-label">喂奶</view>
-          <view class="summary-value">{{ getTypeCount('FEEDING') }}</view>
-        </view>
-        <view class="summary-item sleep">
-          <view class="summary-icon">眠</view>
-          <view class="summary-label">睡眠</view>
-          <view class="summary-value">{{ getTypeCount('SLEEP') }}</view>
-        </view>
-        <view class="summary-item care">
-          <view class="summary-icon">护</view>
-          <view class="summary-label">护理</view>
-          <view class="summary-value">{{ getTypeCount('DIAPER') }}</view>
-        </view>
-        <view class="summary-item note">
-          <view class="summary-icon">记</view>
-          <view class="summary-label">互动</view>
-          <view class="summary-value">{{ getTypeCount('BASIC_CARE') }}</view>
-        </view>
+    <view class="date-card">
+      <view>
+        <view class="section-title">护理事实</view>
+        <view class="empty-desc">{{ selectedDateLabel }}</view>
       </view>
+      <picker mode="date" :value="selectedDate" @change="handleDateChange">
+        <view class="date-action">切换日期</view>
+      </picker>
     </view>
 
     <view class="voice-card" @click="goVoice">
@@ -43,7 +27,7 @@
 
     <view class="section-card">
       <view class="section-header">
-        <view class="section-title">今日时间轴</view>
+        <view class="section-title">护理事实</view>
         <view class="section-more">{{ timelineCountText }}</view>
       </view>
       <view v-if="isTimelineInitialLoading" class="timeline-empty">
@@ -65,72 +49,31 @@
         <view class="empty-dot"></view>
         <view>
           <view class="empty-title">暂无护理记录</view>
-          <view class="empty-desc">点击下方快速记录后，会按时间展示宝宝今日照护。</view>
+          <view class="empty-desc">这一天还没有护理记录。</view>
         </view>
       </view>
       <view v-else class="record-list">
-        <view v-for="record in visibleRecords" :key="record.recordId" class="record-row">
-          <view class="record-node"></view>
-          <view class="record-content">
-            <view class="record-time">{{ record.displayTime }}</view>
-            <view class="record-main">
-              <view class="record-name">{{ record.recordTypeLabel }}</view>
-              <view class="record-remark">{{ record.displayRemark }}</view>
-            </view>
-          </view>
-        </view>
+        <timeline-item v-for="record in visibleRecords" :key="record.id" :item="record" mode="detail" />
       </view>
     </view>
-
-    <view class="section-card">
-      <view class="section-title">快速记录</view>
-      <view class="quick-grid">
-        <view
-          v-for="item in quickTypes"
-          :key="item.recordType"
-          class="quick-item"
-          :class="{ disabled: submitting }"
-          @click="handleQuickRecord(item)"
-        >
-          {{ item.quickLabel }}
-        </view>
-      </view>
-    </view>
-    <quick-record-sheet
-      :visible="quickRecordSheet.visible"
-      :draft="quickRecordSheet.draft"
-      :submitting="submitting"
-      :mock-voice-enabled="mockVoiceEnabled"
-      @close="closeQuickRecordSheet"
-      @confirm="handleQuickRecordConfirm"
-    />
   </view>
 </template>
 
 <script>
 import { isMockVoiceEnabled } from '../../config/env'
 import {
-  CARE_RECORD_TYPES,
-  createQuickCareRecord,
   fetchCareRecordList,
-  getRecordListTypeCountText,
   getTodayDateString
 } from '../../services/careRecordService'
 import { ensureCurrentBabyId } from '../../services/babyService'
-import { consumePendingReminderForRecord } from '../../services/reminderService'
-import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
+import TimelineItem from '../../components/TimelineItem.vue'
 import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
-import {
-  buildManualQuickRecordDraft,
-  buildQuickRecordCareOptions,
-  buildQuickRecordDraftFromReminder
-} from '../../services/quickRecordService'
 
 export default {
   name: 'RecordPage',
   components: {
-    QuickRecordSheet
+    TimelineItem
   },
   data() {
     return {
@@ -141,27 +84,22 @@ export default {
       loadError: false,
       loadErrorText: '',
       timelineRequestSeq: 0,
-      submitting: false,
       mockVoiceEnabled: isMockVoiceEnabled(),
-      pendingReminder: null,
-      quickRecordSheet: {
-        visible: false,
-        draft: null
-      },
-      quickTypes: [
-        ...CARE_RECORD_TYPES
-      ]
+      selectedDate: getTodayDateString()
     }
   },
   computed: {
     voiceEntryDesc() {
-      return this.mockVoiceEnabled ? '说一句照护备注，确认后保存到记录。' : '语音输入暂未开放，可先手动记录。'
+      return this.mockVoiceEnabled ? '说一句照护备注，确认后保存到记录。' : '语音输入暂未开放，可从今日页快速记录。'
     },
     babyPillText() {
       return this.currentBabyId ? '当前宝宝已选择' : '未选择宝宝'
     },
     timelineCountText() {
       return this.visibleRecords.length ? `${this.visibleRecords.length}条` : '暂无记录'
+    },
+    selectedDateLabel() {
+      return this.selectedDate === getTodayDateString() ? '今天' : this.selectedDate
     },
     visibleRecords() {
       if (!this.currentBabyId || String(this.recordsBabyId) !== String(this.currentBabyId)) {
@@ -180,9 +118,7 @@ export default {
     }
   },
   async onShow() {
-    this.pendingReminder = consumePendingReminderForRecord()
     await this.refreshTimelineData()
-    this.openPendingReminderSheet()
   },
   onLoad() {
     uni.$on('care-record-created', this.handleCareRecordCreated)
@@ -228,7 +164,7 @@ export default {
       try {
         const records = await fetchCareRecordList({
           babyId: targetBabyId,
-          date: getTodayDateString()
+          date: this.selectedDate
         })
         if (requestSeq !== this.timelineRequestSeq || String(targetBabyId) !== String(this.currentBabyId)) {
           return
@@ -247,76 +183,9 @@ export default {
         }
       }
     },
-    handleQuickRecord(item) {
-      if (this.submitting || !this.currentBabyId) {
-        return
-      }
-      const draft = buildManualQuickRecordDraft(this.currentBabyId, item)
-      if (!draft) {
-        return
-      }
-      this.quickRecordSheet = {
-        visible: true,
-        draft
-      }
-    },
-    openPendingReminderSheet() {
-      if (!this.pendingReminder || !this.currentBabyId) {
-        return
-      }
-      const draft = buildQuickRecordDraftFromReminder(this.pendingReminder, this.currentBabyId)
-      if (!draft) {
-        return
-      }
-      this.quickRecordSheet = {
-        visible: true,
-        draft
-      }
-    },
-    closeQuickRecordSheet() {
-      this.quickRecordSheet = {
-        visible: false,
-        draft: null
-      }
-    },
-    async handleQuickRecordConfirm(result) {
-      const draft = this.quickRecordSheet.draft
-      if (this.submitting || !draft || !this.currentBabyId) {
-        return
-      }
-      if (String(draft.babyId) !== String(this.currentBabyId)) {
-        uni.showToast({
-          title: '提醒不属于当前宝宝',
-          icon: 'none'
-        })
-        return
-      }
-      const options = buildQuickRecordCareOptions(draft, result)
-      this.submitting = true
-      try {
-        await createQuickCareRecord(this.currentBabyId, draft.recordType, options)
-        uni.$emit('care-record-created', {
-          babyId: this.currentBabyId,
-          reminderInstanceId: options.reminderInstanceId || null
-        })
-        this.pendingReminder = null
-        this.closeQuickRecordSheet()
-        uni.showToast({
-          title: '已记录',
-          icon: 'success'
-        })
-        await this.refreshTimelineData()
-      } catch (error) {
-        uni.showToast({
-          title: error.msg || '记录失败',
-          icon: 'none'
-        })
-      } finally {
-        this.submitting = false
-      }
-    },
-    getTypeCount(recordType) {
-      return getRecordListTypeCountText(this.visibleRecords, recordType)
+    async handleDateChange(event) {
+      this.selectedDate = event.detail.value || getTodayDateString()
+      await this.refreshTimelineData()
     },
     goVoice() {
       if (!this.mockVoiceEnabled) {
@@ -336,9 +205,6 @@ export default {
       })
     },
     handleCareRecordCreated(payload) {
-      if (this.submitting) {
-        return
-      }
       const currentBabyId = getCurrentBabyId()
       if (!payload || !payload.babyId || String(payload.babyId) === String(currentBabyId)) {
         this.refreshTimelineData()
@@ -384,7 +250,7 @@ export default {
   line-height: 1.6;
 }
 
-.summary-card,
+.date-card,
 .section-card,
 .voice-card {
   margin-bottom: 20rpx;
@@ -394,71 +260,34 @@ export default {
   box-shadow: 0 10rpx 24rpx rgba(31, 35, 41, 0.05);
 }
 
+.date-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.date-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 148rpx;
+  height: 64rpx;
+  box-sizing: border-box;
+  padding: 0 24rpx;
+  border: 2rpx solid #d96f1f;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #9f4e12;
+  font-size: 24rpx;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .section-title {
   color: #1f2329;
   font-size: 30rpx;
   font-weight: 700;
-}
-
-.summary-grid,
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14rpx;
-  margin-top: 22rpx;
-}
-
-.summary-item {
-  min-height: 132rpx;
-  padding: 18rpx 10rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #f8f9fb;
-  text-align: center;
-}
-
-.summary-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48rpx;
-  height: 48rpx;
-  margin: 0 auto 10rpx;
-  border-radius: 50%;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-
-.feeding .summary-icon {
-  background: #fff5ec;
-  color: #c96a16;
-}
-
-.sleep .summary-icon {
-  background: #f2e7ff;
-  color: #8d6bd1;
-}
-
-.care .summary-icon {
-  background: #e8f7ec;
-  color: #62a66d;
-}
-
-.note .summary-icon {
-  background: #edf3ff;
-  color: #6a8ccf;
-}
-
-.summary-label {
-  color: #1f2329;
-  font-size: 25rpx;
-  font-weight: 700;
-}
-
-.summary-value {
-  margin-top: 8rpx;
-  color: #69707a;
-  font-size: 22rpx;
 }
 
 .voice-card {
@@ -509,8 +338,18 @@ export default {
 }
 
 .voice-action {
-  color: #c96a16;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112rpx;
+  height: 56rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #d96f1f;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #9f4e12;
   font-size: 24rpx;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -533,72 +372,17 @@ export default {
 .record-list {
   position: relative;
   margin-top: 18rpx;
-  padding-left: 14rpx;
 }
 
 .record-list::before {
   position: absolute;
   top: 24rpx;
   bottom: 24rpx;
-  left: 8rpx;
+  left: 115rpx;
   width: 2rpx;
   border-radius: 999rpx;
   background: #eceff3;
   content: '';
-}
-
-.record-row {
-  position: relative;
-  display: flex;
-  padding: 18rpx 0 18rpx 18rpx;
-}
-
-.record-node {
-  position: absolute;
-  top: 28rpx;
-  left: -11rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border: 4rpx solid #ffffff;
-  border-radius: 50%;
-  background: #f28c38;
-}
-
-.record-content {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  padding-bottom: 16rpx;
-  border-bottom: 1rpx solid #eceff3;
-}
-
-.record-row:last-child .record-content {
-  border-bottom: 0;
-}
-
-.record-time {
-  flex-shrink: 0;
-  width: 90rpx;
-  color: #9aa1aa;
-  font-size: 22rpx;
-}
-
-.record-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.record-name {
-  color: #1f2329;
-  font-size: 26rpx;
-  font-weight: 700;
-}
-
-.record-remark {
-  margin-top: 6rpx;
-  color: #69707a;
-  font-size: 23rpx;
-  line-height: 1.5;
 }
 
 .empty-dot {
@@ -610,32 +394,12 @@ export default {
   background: #f28c38;
 }
 
-.quick-item {
-  padding: 24rpx 12rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #ffffff;
-  color: #1f2329;
-  font-size: 25rpx;
-  text-align: center;
-  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.04);
-  transition: transform 0.12s ease, background-color 0.12s ease;
-}
-
-.quick-item:active {
-  border-color: #f3d8bf;
-  background: #fff8f2;
-  transform: scale(0.98);
-}
-
-.quick-item.disabled {
-  opacity: 0.58;
-}
-
 .retry-action {
   margin-top: 16rpx;
-  color: #c96a16;
-  background: #fff5ec;
+  border: 2rpx solid #d96f1f;
+  background: #ffffff;
+  color: #9f4e12;
   border-radius: 999rpx;
+  font-weight: 750;
 }
 </style>

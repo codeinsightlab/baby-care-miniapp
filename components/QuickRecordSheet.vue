@@ -216,9 +216,10 @@ export default {
   width: 100%;
   height: 76rpx;
   margin: 18rpx 0 0;
+  border: 2rpx solid #d96f1f;
   border-radius: 999rpx;
   font-size: 26rpx;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 76rpx;
 }
 
@@ -228,13 +229,17 @@ export default {
 }
 
 .voice-action {
-  border: 1rpx solid #f3d8bf;
-  background: #fff8f2;
-  color: #c96a16;
+  background: #ffffff;
+  color: #9f4e12;
 }
 
 .confirm-action {
-  background: #f28c38;
+  background: #e8792a;
   color: #ffffff;
+}
+
+.voice-action:active,
+.confirm-action:active {
+  transform: scale(0.98);
 }
 </style>

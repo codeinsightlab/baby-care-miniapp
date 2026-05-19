@@ -30,6 +30,7 @@ const context = vm.createContext({
 
 loadModule('services/quickRecordService.js', context)
 loadModule('api/careRecord.js', context)
+loadModule('constants/careTypeMeta.js', context)
 loadModule('services/careRecordService.js', context)
 
 const reminder = {

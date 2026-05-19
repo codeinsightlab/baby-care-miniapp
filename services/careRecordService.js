@@ -1,4 +1,5 @@
 import { createCareRecord, getCareRecordList, getTodayCareSummary } from '../api/careRecord'
+import { getCareTypeMeta, getCareTypeMetaByRecordType } from '../constants/careTypeMeta'
 import { sanitizeVisibleText } from './textSanitizer'
 
 export const CARE_RECORD_TYPES = [
@@ -41,11 +42,53 @@ function formatTime(value) {
   return parts[1] ? parts[1].slice(0, 5) : String(value).slice(11, 16)
 }
 
+function resolveCareRecordMeta(record) {
+  const source = record || {}
+  if (source.careType) {
+    return getCareTypeMeta(source.careType)
+  }
+  const recordType = String(source.recordType || '').toUpperCase()
+  const clueText = [
+    source.title,
+    source.recordTypeLabel,
+    source.remark,
+    source.displayRemark,
+    source.description
+  ].filter(Boolean).join(' ')
+  if (recordType === 'BASIC_CARE' || recordType === 'DIAPER') {
+    if (/用药|服药|药/.test(clueText)) {
+      return getCareTypeMeta('MEDICINE')
+    }
+    if (/体温|温度|测温|温/.test(clueText)) {
+      return getCareTypeMeta('TEMPERATURE')
+    }
+  }
+  return getCareTypeMetaByRecordType(recordType)
+}
+
+export function toCareRecordTimelineItemViewModel(record) {
+  const source = record || {}
+  const meta = resolveCareRecordMeta(source)
+  const remark = sanitizeVisibleText(source.remark || source.description || '')
+  const base = {
+    ...source,
+    id: source.id || source.recordId,
+    title: meta.label,
+    description: remark,
+    displayRemark: remark,
+    iconText: meta.iconText,
+    typeClass: meta.typeClass,
+    itemClass: 'timeline-item-record',
+    showDescription: Boolean(remark)
+  }
+  return base
+}
+
 export function toCareRecordViewModel(raw) {
   if (!raw) {
     return null
   }
-  return {
+  const record = {
     recordId: raw.recordId,
     familyId: raw.familyId,
     babyId: raw.babyId,
@@ -55,9 +98,10 @@ export function toCareRecordViewModel(raw) {
     recordTime: raw.recordTime || '',
     displayTime: formatTime(raw.recordTime),
     remark: sanitizeVisibleText(raw.remark || ''),
-    displayRemark: sanitizeVisibleText(raw.remark || '快速记录'),
+    displayRemark: sanitizeVisibleText(raw.remark || ''),
     voiceRecordId: raw.voiceRecordId
   }
+  return toCareRecordTimelineItemViewModel(record)
 }
 
 function toTypeCountMap(typeCounts) {

@@ -6,12 +6,12 @@
         <view class="baby-age">{{ babyAgeText }}</view>
       </view>
       <view>
-        <view class="stage-pill">当前阶段：0-14天成长模板</view>
+        <view class="stage-pill">手动护理节奏</view>
         <view v-if="refreshing" class="refreshing-pill">更新中</view>
       </view>
     </view>
 
-    <view class="page-desc">已根据宝宝信息生成参考计划，可按实际情况调整。</view>
+    <view class="page-desc">按当前宝宝手动配置提醒时间、启停状态和默认护理内容。</view>
 
     <view v-if="!currentBabyId" class="state-card">
       <view>请先选择宝宝，再设置护理计划。</view>
@@ -314,20 +314,21 @@ export default {
   margin-left: 0;
   margin-right: 0;
   height: 84rpx;
+  border: 2rpx solid #d96f1f;
   border-radius: 999rpx;
   font-size: 27rpx;
+  font-weight: 800;
   line-height: 84rpx;
 }
 
 .primary-action {
-  background: #f28c38;
+  background: #e8792a;
   color: #ffffff;
 }
 
 .soft-action {
-  border: 1rpx solid #f3d8bf;
-  background: #fff5ec;
-  color: #c96a16;
+  background: #ffffff;
+  color: #9f4e12;
 }
 
 .full-action {

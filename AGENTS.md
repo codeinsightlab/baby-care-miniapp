@@ -202,11 +202,13 @@
 - 用户可见多人协作入口必须使用“宝宝协作 / 邀请照顾人 / 照顾人”等表达，不得使用“家庭 / 家庭成员 / 加入家庭 / 创建家庭 / 家庭管理”。
 - 当前宝宝是用户侧主状态，今日、记录、历史、提醒和语音备注等页面应围绕当前宝宝展开。
 - 不允许把 UI 任务扩展成业务功能任务，不允许顺手重构小程序整体结构。
-- today 首页必须表达“今日照护过程”，主线是“当前待执行 / 现在要照护什么”；页面应形成“当前宝宝 -> 当前待执行 -> 今日时间轴 -> 今日概览 / 快速记录”的自然节奏，禁止所有 section 同等级堆叠或后台 dashboard 感。
-- today 首页最终 IA 为：当前宝宝 -> Care Status -> 当前待执行 -> 今日时间轴 -> 今日统计 -> 快速记录；后续 UI 精修必须服从该骨架，禁止边做 UI 边重新定义首页结构。
+- today 首页必须表达“当前护理节奏流”，主线是“当前待执行 / 现在要照护什么”；页面应形成“当前宝宝 -> 当前待执行主卡 -> Quick Actions -> 今日轻量 Timeline”的自然节奏，禁止所有 section 同等级堆叠、补偿列表化或后台 dashboard 感。
+- Reminder MVP 页面职责最终边界为：Today 负责当前护理节奏流，Reminder 负责历史未处理补偿流，Record 负责 CareRecord 护理事实历史，Plan 负责手动护理节奏配置，Baby 负责宝宝对象和协作关系；禁止页面再次膨胀成全能护理入口。
 - today 首页允许 Care Status 状态表达，用于说明“宝宝现在是什么状态”；状态只能来自 record、plan、timeline event 和当前时间，禁止 AI 建议、健康分析、自动育儿建议、推荐系统、黑盒推断或复杂状态机。
 - 今日时间轴必须展示“宝宝今日照护事件流”，只能消费统一 Timeline Event view model；禁止直接把 record list、reminder log 或按钮操作流水当作时间轴渲染。
 - 今日时间轴必须保留真实事件，禁止自动合并、自动删除、语义压缩或 AI 摘要；允许通过 `eventType` 展示映射弱化 `PLAN_COMPLETED`、`PLAN_DELAYED`、`SYSTEM_EVENT` 等辅助事件，但不得改变事件真实性。
+- 小程序按钮必须遵守 Button System Rules：主按钮使用实底、高对比文字、清晰边界和明确 active 态；次按钮可以轻量但必须有清晰描边；禁止半透明灰按钮、浅灰虚边、低对比 CTA 和依赖 uni-button 默认虚边。
+- Reminder MVP 的 `ReminderCard`、`TimelineItem`、`QuickRecordSheet` 复用边界不得被页面复制替代；Today / Reminder 只能通过组件 `mode` 区分页面语义。
 
 ## 十二、小程序页面刷新策略
 

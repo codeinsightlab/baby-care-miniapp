@@ -16,8 +16,6 @@ const statusLabels = {
   EXPIRED: '已过期'
 }
 
-const pendingReminderRecordStorageKey = 'BC_PENDING_REMINDER_RECORD_CONTEXT'
-
 function toTwoDigits(value) {
   return String(value).padStart(2, '0')
 }
@@ -268,27 +266,6 @@ export async function fetchReminderList(babyId) {
 export async function fetchTodayReminders(babyId) {
   const query = buildTodayPendingWindow()
   return queryReminderInstances(babyId, query)
-}
-
-export function savePendingReminderForRecord(reminder) {
-  if (!reminder || !reminder.reminderInstanceId) {
-    return
-  }
-  uni.setStorageSync(pendingReminderRecordStorageKey, {
-    reminderInstanceId: reminder.reminderInstanceId,
-    babyId: reminder.babyId,
-    planTemplateId: reminder.planTemplateId,
-    careType: reminder.careType,
-    recordType: reminder.recordType,
-    title: reminder.templateName,
-    defaultRecordContext: reminder.defaultRecordContext || ''
-  })
-}
-
-export function consumePendingReminderForRecord() {
-  const value = uni.getStorageSync(pendingReminderRecordStorageKey)
-  uni.removeStorageSync(pendingReminderRecordStorageKey)
-  return value || null
 }
 
 export function buildReminderTypeSummaries(reminders) {

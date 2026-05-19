@@ -105,7 +105,7 @@ export function buildPlanGroups(templates) {
       templateCount: items.length,
       enabledCount: enabledItems.length,
       displayTime: first ? first.displayTime : '未设置',
-      summary: items.length ? `${items.length} 个节点，${enabledItems.length} 个已开启` : '尚未配置',
+      summary: items.length ? `${items.length} 个时间点，${enabledItems.length} 个已开启` : '尚未配置',
       disabled: false
     }
   })

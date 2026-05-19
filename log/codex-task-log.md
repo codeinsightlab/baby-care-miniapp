@@ -1,3 +1,175 @@
+### 2026-05-19 23:07 - TimelineItem 统一护理事实 ViewModel
+
+- 原始目标：
+  - 真正抽取统一 `TimelineItem`，以 Record 页“护理事实”样式为基准，让 Today / Record 复用同一组件和同一 CareRecord ViewModel。
+- 本轮轮次：
+  - Reminder MVP Timeline UI 最终统一轮；只做 Timeline UI / ViewModel 收口。
+- 上一轮做法：
+  - 已有 `TimelineItem` 和 `compact/detail` mode，但 Record 页仍通过 `recordTimelineItems()` 自行拼 title、icon、detailText，Today 的 timeline adapter 也保留“记”这类记录动作 icon 兜底。
+- 用户反馈 / 否定点：
+  - Today Timeline 与 Record Timeline 实际仍不是同一个组件 / 同一 ViewModel；
+  - Record 页“已保存护理备注”是系统解释型文案，不是护理事实。
+- 本轮调整方向：
+  - Record 直接把 `visibleRecords` 交给 `TimelineItem mode="detail"`；
+  - `careRecordService` 输出统一 CareRecord ViewModel，Today Timeline adapter 也转换为同一 ViewModel；
+  - `TimelineItem` 只展示护理行为标题和 remark / 护理事实内容；
+  - icon 只表达护理行为，fallback 从“记”改为“护”。
+- 涉及文件：
+  - `components/TimelineItem.vue`
+  - `constants/careTypeMeta.js`
+  - `services/careRecordService.js`
+  - `services/timelineService.js`
+  - `pages/record/index.vue`
+  - `pages/today/index.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/recordTimelineRefresh.test.mjs`
+  - `tests/quickRecordSheet.test.mjs`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 CareRecord / Timeline 既有接口和数据来源；
+  - 沿用 `TimelineItem` 的 `compact/detail` mode；
+  - 沿用 Today 轻量展示、Record 完整展示的页面职责边界。
+- 回滚 / 放弃内容：
+  - 放弃 Record 页继续维护 `recordTimelineItems()` 本地拼装层；
+  - 放弃“已保存护理备注”等系统解释型文案；
+  - 放弃“记”作为 Timeline icon 兜底；
+  - 放弃无 remark 时用“快速记录”填充护理事实内容。
+- 当前状态：
+  - Today / Record 已真正复用同一个 `TimelineItem`；
+  - 前端 CareRecord ViewModel 已统一；
+  - 本轮未修改 ReminderInstance、PlanTemplate、Reminder Query、数据库、CareRecord 模型、Timeline API、Family / Invite、scheduler 或 workflow。
+- 后续注意：
+  - 仍需真机重点观察多类型护理事实、长 remark 换行、icon 与标题间距，以及基础护理中用药 / 体温推断的边界。
+
+### 2026-05-19 22:54 - Timeline UI 护理事实命名与 spacing 收口
+
+- 原始目标：
+  - 只修 Today / Record 的 Timeline UI 统一与 spacing，不改 Reminder 架构、查询、数据库或 Timeline 数据来源。
+- 本轮轮次：
+  - Reminder MVP 最终 Timeline UI 收口轮。
+- 上一轮做法：
+  - 已有唯一 `TimelineItem` 组件和 `compact/detail` mode，但 Today 页面还残留旧 timeline item 样式，UI 命名仍出现“今日时间轴 / 护理时间轴”。
+- 用户反馈 / 否定点：
+  - icon 挤压文字，时间 / 标题 spacing 不稳，标题和 remark 层级不够清晰，Today 与 Record 的“护理事实”语义还没完全统一。
+- 本轮调整方向：
+  - Today / Record 统一显示“护理事实”；
+  - `TimelineItem` 固定时间列、icon 列和正文列；
+  - icon 区域加宽并固定 `flex-shrink: 0`；
+  - 标题加深加粗，remark 降为辅助信息；
+  - Today 删除旧本地 Timeline UI 样式，只保留容器竖线。
+- 涉及文件：
+  - `components/TimelineItem.vue`
+  - `pages/today/index.vue`
+  - `pages/record/index.vue`
+  - `services/timelineService.js`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/recordTimelineRefresh.test.mjs`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 CareRecord / Timeline 既有数据来源和 compact/detail mode；
+  - 沿用 Record 只展示护理事实、Today 只轻量展示今日护理事实的页面边界。
+- 回滚 / 放弃内容：
+  - 放弃“今日时间轴 / 护理时间轴”作为当前 UI 主命名；
+  - 放弃 Today 页面本地维护第二套 Timeline UI；
+  - 放弃 Timeline 展示 Reminder、Pending、任务状态或大 badge。
+- 当前状态：
+  - Timeline UI 已统一为护理事实流，spacing 和层级已收口；
+  - 本轮未修改 ReminderInstance、PlanTemplate、Reminder Query、数据库、Timeline 数据来源、Family / Invite、scheduler 或 workflow。
+- 后续注意：
+  - 仍需真机观察长护理标题、icon 间距、remark 层级和多条护理事实堆叠。
+
+### 2026-05-19 22:32 - Reminder MVP UI 系统一致性收口
+
+- 原始目标：
+  - 只做小程序 UI 系统一致性收口，统一 TimelineItem、ReminderCard 和 ButtonSystem，不改业务模型、接口、数据库或调度能力。
+- 本轮轮次：
+  - Reminder MVP 最终产品 UI 系统收口轮。
+- 上一轮做法：
+  - 已完成页面职责与 IA 收口，但提醒卡仍叫 `TodayPendingCard`，TimelineItem 未显式区分 compact/detail，按钮样式仍散落且部分偏浅。
+- 用户反馈 / 否定点：
+  - 同类功能长得像但又不一样；Today timeline / Record timeline、Today pending / Reminder compensation、页面按钮需要最终统一。
+- 本轮调整方向：
+  - `TimelineItem` 增加 `mode=compact/detail`；
+  - `ReminderCard` 替代 `TodayPendingCard`，Today / Reminder 只通过 `mode=today/compensation` 区分；
+  - ButtonSystem 固化为实底主按钮、清晰描边次按钮、高对比文字和明确 active 态。
+- 涉及文件：
+  - `App.vue`
+  - `components/ReminderCard.vue`
+  - `components/TimelineItem.vue`
+  - `components/QuickRecordSheet.vue`
+  - `components/TodayPendingCard.vue`
+  - `pages/today/index.vue`
+  - `pages/reminder/index.vue`
+  - `pages/record/index.vue`
+  - `pages/plan/index.vue`
+  - `pages/plan/feeding.vue`
+  - `pages/plan/sleep.vue`
+  - `pages/plan/care.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/reminderFlow.test.mjs`
+  - `tests/recordTimelineRefresh.test.mjs`
+  - `AGENTS.md`
+  - `log/codex-task-log.md`
+- 沿用内容：
+  - 沿用 ReminderInstance ViewModel、Quick Record Sheet、CareRecord Timeline 主事实和既有页面刷新回流。
+- 回滚 / 放弃内容：
+  - 删除 `TodayPendingCard.vue`；
+  - compensation mode 不再显示“稍后”，只保留“去记录 / 忽略”；
+  - 不再允许页面复制 Timeline UI、Reminder card 或发虚按钮样式。
+- 当前状态：
+  - 小程序 UI 系统已按最终收口方案更新；
+  - 本轮未修改后端、数据库、接口、Family / Invite、Timeline 主事实、scheduler 或 workflow。
+- 后续注意：
+  - 真机 / H5 视觉验收仍需重点观察按钮是否还有发虚残留，以及 Reminder 是否明显区别于 Today。
+
+### 2026-05-19 22:15 - Reminder MVP 页面职责最终 UI / IA 收口
+
+- 原始目标：
+  - 在不修改 ReminderInstance / PlanTemplate / 数据库 / 后端接口语义的前提下，完成 Today / Reminder / Record / Plan 的页面职责最终收口，并统一小程序组件系统。
+- 本轮轮次：
+  - Reminder MVP 最终 UI / IA 收口轮；上一轮已完成页面职责审查，本轮落到小程序页面、组件和回归脚本。
+- 上一轮做法：
+  - Today、Reminder、Record、Plan 已接入 Reminder 主链路，但页面仍存在重复护理入口：Today 和 Reminder 都像提醒页，Record 保留 Quick Record，Plan 语言仍偏执行结果。
+- 用户反馈 / 否定点：
+  - 多页面职责重叠导致产品像任务系统：信息重复、入口重复、护理流混乱、组件风格不统一。
+- 本轮调整方向：
+  - Today 收口为当前护理节奏流；
+  - Reminder 收口为历史未处理提醒和补偿流；
+  - Record 收口为 CareRecord 护理事实时间轴；
+  - Plan 收口为手动护理节奏配置；
+  - `TodayPendingCard`、`TimelineItem`、`CareTypeMeta`、`QuickRecordSheet` 成为统一组件边界。
+- 涉及文件：
+  - `components/TodayPendingCard.vue`
+  - `components/TimelineItem.vue`
+  - `constants/careTypeMeta.js`
+  - `services/reminderService.js`
+  - `services/planService.js`
+  - `pages/today/index.vue`
+  - `pages/reminder/index.vue`
+  - `pages/record/index.vue`
+  - `pages/plan/index.vue`
+  - `pages/plan/feeding.vue`
+  - `pages/plan/sleep.vue`
+  - `pages/plan/care.vue`
+  - `tests/todayPendingFlow.test.mjs`
+  - `tests/reminderFlow.test.mjs`
+  - `tests/recordTimelineRefresh.test.mjs`
+- 沿用内容：
+  - 沿用统一 `queryReminderInstances(window)`、`care-record-created` 回流、Quick Record Bottom Sheet、currentBaby 刷新机制和 CareRecord 作为 Timeline 主事实。
+- 回滚 / 放弃内容：
+  - 放弃 Today 历史补偿和统计主区；
+  - 放弃 Reminder 第二个 Today 式展示；
+  - 放弃 Record Quick Record 主入口和 pending reminder 本地中转；
+  - 放弃 Plan 展示 Reminder 结果或使用“节点 / 默认生成”类执行语言；
+  - 放弃页面内复制 pending card、timeline item、careType switch 或 Quick Record UI。
+- 当前状态：
+  - 小程序页面与组件已按最终 IA 收口；
+  - 前端回归脚本通过：`startupFlow`、`reminderQueryWindow`、`todayPendingFlow`、`reminderFlow`、`quickRecordSheet`、`recordTimelineRefresh`；
+  - 本轮未修改 Java 后端、数据库、后端接口、Family / Invite、Timeline 主事实、scheduler 或 workflow。
+- 后续注意：
+  - Ignore / Snooze 仍待后续接口能力接入；
+  - 仍需在用户常驻 H5 或真机环境做连续页面体验验收，确认 Today / Reminder / Record / currentBaby 切换 / tabBar 返回不再像任务系统。
+
 ### 2026-05-19 21:52 - baby 列表页刷新机制收口
 
 - 原始目标：

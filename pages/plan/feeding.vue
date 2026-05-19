@@ -22,7 +22,7 @@
 
     <view class="section-card">
       <view class="section-title">默认节奏</view>
-      <view class="empty-desc">0-14天阶段以高频喂养为主，默认每2小时生成1个参考喂养节点。</view>
+      <view class="empty-desc">0-14天阶段以高频喂养为主，可按实际节奏设置参考喂养时间。</view>
     </view>
 
     <view class="section-card">
@@ -31,7 +31,7 @@
     </view>
 
     <view class="section-card">
-      <view class="section-title">参考喂养节点</view>
+      <view class="section-title">参考喂养时间</view>
       <view v-if="pageInitializing && !hasNodes" class="empty-desc">正在加载计划...</view>
       <view v-else>
         <view v-for="(node, index) in nodes" :key="node.localId" class="node-row">
@@ -41,7 +41,7 @@
           <switch :checked="isPlanEnabled(node.enabled)" color="#f28c38" @change="handleNodeToggle(index, $event)" />
           <view class="delete-action" @click="removeNode(index)">删</view>
         </view>
-        <view class="add-node" @click="addNode">+ 新建节点</view>
+        <view class="add-node" @click="addNode">+ 新建时间</view>
       </view>
     </view>
 
@@ -145,7 +145,7 @@ export default {
         reminderTime: time,
         enabled: PLAN_ENABLED_STATUS.ENABLED,
         context: this.buildContext(),
-        remark: '喂养计划默认节点'
+        remark: '喂养计划参考时间'
       }
     },
     buildContext() {
@@ -184,7 +184,7 @@ export default {
         return
       }
       if (!this.nodes.length) {
-        uni.showToast({ title: '请至少保留一个喂养节点', icon: 'none' })
+        uni.showToast({ title: '请至少保留一个喂养时间', icon: 'none' })
         return
       }
       this.submitting = true
@@ -344,19 +344,20 @@ export default {
   margin-left: 0;
   margin-right: 0;
   height: 84rpx;
+  border: 2rpx solid #d96f1f;
   border-radius: 999rpx;
   font-size: 27rpx;
+  font-weight: 800;
   line-height: 84rpx;
 }
 
 .primary-action {
-  background: #f28c38;
+  background: #e8792a;
   color: #ffffff;
 }
 
 .soft-action {
-  border: 1rpx solid #f3d8bf;
-  background: #fff5ec;
-  color: #c96a16;
+  background: #ffffff;
+  color: #9f4e12;
 }
 </style>

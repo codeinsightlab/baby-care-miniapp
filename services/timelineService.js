@@ -1,24 +1,6 @@
 import { getTodayTimelineEvents } from '../api/timeline'
+import { getRecordTypeLabel, toCareRecordTimelineItemViewModel } from './careRecordService'
 import { sanitizeVisibleText } from './textSanitizer'
-
-const eventTypeUi = {
-  RECORD: {
-    iconText: '记',
-    typeClass: 'record-event',
-    itemClass: 'timeline-item-record',
-    visualPriority: 'P0',
-    showDescription: true,
-    fallbackTitle: '照护记录'
-  },
-  SYSTEM_EVENT: {
-    iconText: '',
-    typeClass: 'system-event',
-    itemClass: 'timeline-item-system',
-    visualPriority: 'P3',
-    showDescription: false,
-    fallbackTitle: '今日照护提醒'
-  }
-}
 
 function formatTime(value) {
   if (!value) {
@@ -35,25 +17,28 @@ export function toTimelineEventViewModel(raw) {
   if (!raw) {
     return null
   }
-  const ui = eventTypeUi[raw.eventType] || eventTypeUi.SYSTEM_EVENT
+  if (raw.eventType && raw.eventType !== 'RECORD') {
+    return null
+  }
+  const extra = raw.extra || {}
+  const recordType = extra.recordType || raw.recordType
   const description = sanitizeVisibleText(raw.description || '')
-  return {
+  return toCareRecordTimelineItemViewModel({
     id: raw.id,
+    recordId: raw.relatedId || raw.id,
+    recordType,
+    recordTypeLabel: raw.recordTypeLabel || getRecordTypeLabel(recordType),
+    recordTime: raw.eventTime || '',
+    displayTime: formatTime(raw.eventTime),
+    remark: description,
+    description,
     eventType: raw.eventType,
     eventTime: raw.eventTime || '',
-    displayTime: formatTime(raw.eventTime),
-    title: sanitizeVisibleText(raw.title || ui.fallbackTitle),
-    description,
     sourceType: raw.sourceType,
     relatedId: raw.relatedId,
     status: raw.status,
-    extra: raw.extra || {},
-    iconText: ui.iconText,
-    typeClass: ui.typeClass,
-    itemClass: ui.itemClass,
-    visualPriority: ui.visualPriority,
-    showDescription: ui.showDescription && Boolean(description)
-  }
+    extra
+  })
 }
 
 export async function fetchTodayTimelineEvents(babyId) {

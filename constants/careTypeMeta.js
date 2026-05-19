@@ -81,12 +81,40 @@ export function getCareTypeMeta(careType) {
   return {
     careType: key || 'UNKNOWN',
     label: key || '提醒',
-    iconText: '记',
+    iconText: '护',
     badgeText: '提醒',
-    typeClass: 'other',
+    typeClass: 'care',
     quickActionText: '去记录',
     recordType: key || 'BASIC_CARE'
   }
+}
+
+export function getCareTypeMetaByRecordType(recordType) {
+  const key = String(recordType || '').toUpperCase()
+  const recordTypeMap = {
+    FEEDING: 'FEEDING',
+    SLEEP: 'SLEEP',
+    DIAPER: 'CARE',
+    BASIC_CARE: 'BASIC_CARE',
+    INTERACTION: 'INTERACTION'
+  }
+  return getCareTypeMeta(recordTypeMap[key] || key)
+}
+
+export function buildQuickActionMetas(careTypes = ['FEEDING', 'SLEEP', 'CARE', 'INTERACTION']) {
+  return careTypes.map((careType) => {
+    const meta = getCareTypeMeta(careType)
+    return {
+      careType: meta.careType,
+      recordType: meta.recordType,
+      label: meta.quickActionText,
+      quickLabel: meta.quickActionText,
+      iconText: meta.iconText,
+      typeClass: meta.typeClass,
+      defaultRemark: meta.quickActionText,
+      defaultContext: meta.quickActionText
+    }
+  })
 }
 
 export function buildCareTypeSummaries(reminders) {

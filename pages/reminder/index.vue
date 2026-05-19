@@ -2,12 +2,12 @@
   <view class="reminder-page">
     <view class="reminder-hero">
       <view class="baby-pill">{{ babyPillText }}</view>
-      <view class="page-title">提醒</view>
-      <view class="page-desc">提醒实例模型正在接入，本页暂作为提醒设置入口。</view>
+      <view class="page-title">未处理提醒</view>
+      <view class="page-desc">这里处理今天已经到点、但还没有记录的照护提醒。</view>
     </view>
 
-    <view class="section-card next-card">
-      <view class="section-title">当前待执行</view>
+    <view v-if="visibleTypeSummaries.length" class="section-card">
+      <view class="section-title">待补处理</view>
       <view v-if="loading" class="empty-reminder">
         <view class="reminder-icon">铃</view>
         <view>
@@ -23,58 +23,41 @@
           <button class="soft-action retry-action" @click="loadReminders">重新加载</button>
         </view>
       </view>
-      <today-pending-card
-        v-else-if="nextReminder"
-        :reminder="nextReminder"
-        compact
-        @go-record="handleGoRecord"
-        @snooze="handleSnoozeReminder"
-      />
-      <view v-else class="empty-reminder">
+      <view v-else-if="noReminders" class="empty-reminder">
         <view class="reminder-icon">铃</view>
         <view>
-          <view class="empty-title">暂无待执行提醒</view>
-          <view class="empty-desc">新的待执行提醒将由提醒实例生成后展示。</view>
+          <view class="empty-title">暂无需要补处理的提醒</view>
+          <view class="empty-desc">当前护理节奏请回到今日页查看。</view>
         </view>
       </view>
-      <view class="action-row">
-        <button class="soft-action plan-action" @click="goPlan">照护计划</button>
-        <button class="soft-action" :disabled="true">稍后提醒</button>
+      <view v-else class="reminder-list">
+        <view
+          v-for="item in reminders"
+          :key="item.reminderInstanceId || item.id"
+          class="reminder-row"
+        >
+          <reminder-card
+            :reminder="item"
+            mode="compensation"
+            @go-record="handleGoRecord"
+            @ignore="handleIgnoreReminder"
+          />
+        </view>
       </view>
     </view>
 
     <view class="section-card">
-      <view class="section-title">提醒类型</view>
+      <view class="section-title">补偿概览</view>
       <view class="reminder-grid">
         <view
-          v-for="item in typeSummaries"
+          v-for="item in visibleTypeSummaries"
           :key="item.careType"
           class="type-card"
           :class="item.typeClass"
         >
           <view class="type-icon">{{ item.iconText }}</view>
-          <view class="type-title">{{ item.label }}提醒</view>
+          <view class="type-title">{{ item.label }}</view>
           <view class="type-desc">{{ item.countText }}</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="section-card">
-      <view class="section-title">提醒列表</view>
-      <view v-if="noReminders" class="empty-desc list-empty">旧提醒节点已下线，待新计划提醒模型接入。</view>
-      <view v-else class="reminder-list">
-        <view
-          v-for="(item, index) in reminders"
-          :key="item.reminderInstanceId || item.id"
-          class="reminder-row"
-          :class="{ faded: index > 0 }"
-        >
-          <today-pending-card
-            :reminder="item"
-            compact
-            @go-record="handleGoRecord"
-            @snooze="handleSnoozeReminder"
-          />
         </view>
       </view>
     </view>
@@ -87,6 +70,13 @@
           <view class="empty-desc">用于后续提醒通知授权，不影响当前页面使用。</view>
         </view>
         <button class="subscribe-action" @click="handleReminderSubscribe">接收提醒</button>
+      </view>
+      <view class="setting-row plan-link">
+        <view>
+          <view class="setting-title">护理节奏</view>
+          <view class="empty-desc">配置提醒时间请到计划页，本页只处理已到点未记录的提醒。</view>
+        </view>
+        <button class="subscribe-action secondary" @click="goPlan">去设置</button>
       </view>
     </view>
     <quick-record-sheet
@@ -112,7 +102,7 @@ import { getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage } from '../../utils/errorClassifier'
 import { requestReminderSubscribe } from '../../utils/subscribe'
 import { isMockVoiceEnabled } from '../../config/env'
-import TodayPendingCard from '../../components/TodayPendingCard.vue'
+import ReminderCard from '../../components/ReminderCard.vue'
 import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
 import {
   buildQuickRecordCareOptions,
@@ -128,7 +118,7 @@ function buildTypeSummaryViewModels(reminders) {
 export default {
   name: 'ReminderPage',
   components: {
-    TodayPendingCard,
+    ReminderCard,
     QuickRecordSheet
   },
   data() {
@@ -143,14 +133,13 @@ export default {
         visible: false,
         draft: null
       },
-      todayReminders: [],
       reminders: [],
       typeSummaries: buildTypeSummaryViewModels([])
     }
   },
   computed: {
-    nextReminder() {
-      return this.todayReminders[0] || null
+    visibleTypeSummaries() {
+      return this.typeSummaries.filter((item) => item.countText !== '暂无提醒')
     },
     babyPillText() {
       return this.currentBabyId ? '当前宝宝已选择' : '未选择宝宝'
@@ -162,7 +151,6 @@ export default {
   async onShow() {
     this.currentBabyId = getCurrentBabyId()
     if (!this.currentBabyId) {
-      this.todayReminders = []
       this.reminders = []
       this.typeSummaries = buildTypeSummaryViewModels([])
       try {
@@ -200,11 +188,9 @@ export default {
       try {
         const query = buildReminderQueueWindow()
         const reminders = await queryReminderInstances(this.currentBabyId, query)
-        this.todayReminders = reminders
         this.reminders = reminders
         this.typeSummaries = buildTypeSummaryViewModels(reminders)
       } catch (error) {
-        this.todayReminders = []
         this.reminders = []
         this.typeSummaries = buildTypeSummaryViewModels([])
         this.loadErrorText = getErrorMessage(error)
@@ -279,6 +265,16 @@ export default {
       }
       uni.showToast({
         title: '稍后提醒功能暂未接入',
+        icon: 'none',
+        duration: 1500
+      })
+    },
+    handleIgnoreReminder(reminder) {
+      if (!reminder) {
+        return
+      }
+      uni.showToast({
+        title: '忽略功能暂未接入',
         icon: 'none',
         duration: 1500
       })
@@ -387,9 +383,11 @@ export default {
 
 .retry-action {
   margin-top: 16rpx;
-  color: #c96a16;
-  background: #fff5ec;
+  border: 2rpx solid #d96f1f;
+  background: #ffffff;
+  color: #9f4e12;
   border-radius: 999rpx;
+  font-weight: 750;
 }
 
 .reminder-icon {
@@ -449,9 +447,10 @@ export default {
 }
 
 .soft-action {
-  border: 1rpx solid #f3d8bf;
-  background: #fff5ec;
-  color: #c96a16;
+  border: 2rpx solid #d96f1f;
+  background: #ffffff;
+  color: #9f4e12;
+  font-weight: 750;
 }
 
 .plan-action {
@@ -561,12 +560,20 @@ export default {
 }
 
 .subscribe-action {
-  padding: 10rpx 18rpx;
+  box-sizing: border-box;
+  min-width: 132rpx;
+  padding: 12rpx 20rpx;
   border-radius: 999rpx;
-  border: 1rpx solid #f3d8bf;
-  background: #fff5ec;
-  color: #c96a16;
+  border: 2rpx solid #d96f1f;
+  background: #e8792a;
+  color: #ffffff;
   font-size: 23rpx;
+  font-weight: 800;
   line-height: 1.5;
+}
+
+.subscribe-action.secondary {
+  background: #ffffff;
+  color: #9f4e12;
 }
 </style>

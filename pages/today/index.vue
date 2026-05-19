@@ -27,31 +27,7 @@
         </view>
       </view>
 
-      <view class="summary-card">
-        <view class="section-header">
-          <view class="section-title">
-            <text class="section-icon">★</text>
-            <text>今日记录情况</text>
-          </view>
-          <view v-if="refreshingState.summary" class="section-refreshing">更新中</view>
-        </view>
-        <view class="summary-grid">
-          <view v-for="item in summaryItems" :key="item.recordType" class="summary-item">
-            <view class="summary-icon" :class="item.typeClass">{{ item.iconText }}</view>
-            <view class="summary-label">{{ item.label }}</view>
-            <view class="summary-value">{{ item.countText }}</view>
-          </view>
-        </view>
-        <view v-if="noRecentRecords" class="voice-empty">
-          <view class="voice-mark">声</view>
-          <view>
-            <view class="empty-title">还没有护理记录</view>
-            <view class="empty-desc">接入记录后，会在这里汇总今日情况。</view>
-          </view>
-        </view>
-      </view>
-
-      <view class="section-card">
+      <view class="section-card pending-section">
         <view class="section-header">
           <view class="section-title">
             <text class="section-icon clock">○</text>
@@ -70,7 +46,7 @@
             </view>
           </view>
         </view>
-        <view v-if="noTodayReminders" class="empty-desc section-empty">当前待执行将由新的提醒实例模型接入。</view>
+        <view v-if="noTodayReminders" class="empty-desc section-empty">现在没有需要立即处理的照护提醒。</view>
         <view v-else class="pending-stack">
           <swiper
             class="pending-swiper"
@@ -83,42 +59,38 @@
               :key="item.reminderInstanceId || item.id"
               class="pending-swiper-item"
             >
-              <today-pending-card :reminder="item" @go-record="handleGoRecord" @snooze="handleSnoozeReminder" />
+              <reminder-card :reminder="item" mode="today" @go-record="handleGoRecord" @snooze="handleSnoozeReminder" />
             </swiper-item>
           </swiper>
         </view>
       </view>
 
-      <view class="section-card">
-        <view class="section-header">
-          <view class="section-title">今日时间轴</view>
-          <view class="section-header-meta">
-            <view v-if="refreshingState.timeline" class="section-refreshing">更新中</view>
-            <view class="section-more">{{ timelineEventCountText }}</view>
-          </view>
-        </view>
-        <view v-if="noTimelineEvents" class="timeline-empty">今天还没有照护事件，保存护理记录后会在这里显示。</view>
-        <view v-else class="timeline-list">
-          <view v-for="event in timelineEvents" :key="event.id" class="timeline-item" :class="event.itemClass">
-            <view class="timeline-time">{{ event.displayTime }}</view>
-            <view class="timeline-node">
-              <view class="timeline-dot" :class="event.typeClass">{{ event.iconText }}</view>
-            </view>
-            <view class="timeline-main">
-              <view class="timeline-title">{{ event.title }}</view>
-              <view v-if="event.showDescription" class="timeline-remark">{{ event.description }}</view>
-            </view>
+      <view class="section-card quick-section">
+        <view class="section-title">快速记录</view>
+        <view class="quick-list">
+          <view
+            v-for="item in quickActions"
+            :key="item.careType"
+            class="quick-item"
+            @click="handleManualQuickRecord(item)"
+          >
+            <view class="quick-icon" :class="item.typeClass">{{ item.iconText }}</view>
+            <view>{{ item.label }}</view>
           </view>
         </view>
       </view>
 
       <view class="section-card">
-        <view class="section-title">快速记录</view>
-        <view class="quick-list">
-          <view v-for="item in quickActions" :key="item.label" class="quick-item">
-            <view class="quick-icon" :class="item.typeClass">{{ item.iconText }}</view>
-            <view>{{ item.label }}</view>
+        <view class="section-header">
+          <view class="section-title">护理事实</view>
+          <view class="section-header-meta">
+            <view v-if="refreshingState.timeline" class="section-refreshing">更新中</view>
+            <view class="section-more">{{ timelineEventCountText }}</view>
           </view>
+        </view>
+        <view v-if="noTimelineEvents" class="timeline-empty">今天还没有护理事实，保存护理记录后会在这里显示。</view>
+        <view v-else class="timeline-list">
+          <timeline-item v-for="event in timelineEvents" :key="event.id" :item="event" mode="compact" />
         </view>
       </view>
     </view>
@@ -135,27 +107,28 @@
 
 <script>
 import { ensureCurrentBabyId, fetchBabyDetail } from '../../services/babyService'
-import { createQuickCareRecord, fetchTodaySummary, getRecordTypeCountText } from '../../services/careRecordService'
+import { createQuickCareRecord } from '../../services/careRecordService'
 import { ensureSilentLogin } from '../../services/loginService'
 import { fetchTodayReminders } from '../../services/reminderService'
 import { fetchTodayTimelineEvents } from '../../services/timelineService'
-import TodayPendingCard from '../../components/TodayPendingCard.vue'
+import ReminderCard from '../../components/ReminderCard.vue'
 import QuickRecordSheet from '../../components/QuickRecordSheet.vue'
+import TimelineItem from '../../components/TimelineItem.vue'
 import { isMockVoiceEnabled } from '../../config/env'
+import { buildQuickActionMetas } from '../../constants/careTypeMeta'
 import { getToken } from '../../utils/auth'
 import { clearCurrentBabyId, getCurrentBabyId } from '../../utils/currentBaby'
 import { getErrorMessage, isUnauthorizedError, shouldClearCurrentBabyId } from '../../utils/errorClassifier'
 import { buildNoBabyEmptyState, shouldLoadTodayBabyData } from '../../utils/todayNoBabyState'
 import {
   buildQuickRecordCareOptions,
+  buildManualQuickRecordDraft,
   buildQuickRecordDraftFromReminder
 } from '../../services/quickRecordService'
 
 function createTodayDisplayState() {
   return {
     currentBaby: null,
-    todaySummary: null,
-    recentRecords: [],
     todayReminders: [],
     timelineEvents: []
   }
@@ -165,16 +138,16 @@ function createRefreshingState() {
   return {
     currentBaby: false,
     todayReminders: false,
-    timeline: false,
-    summary: false
+    timeline: false
   }
 }
 
 export default {
   name: 'TodayPage',
   components: {
-    TodayPendingCard,
-    QuickRecordSheet
+    ReminderCard,
+    QuickRecordSheet,
+    TimelineItem
   },
   data() {
     return {
@@ -202,12 +175,6 @@ export default {
     currentBaby() {
       return this.displayState.currentBaby
     },
-    todaySummary() {
-      return this.displayState.todaySummary
-    },
-    recentRecords() {
-      return this.displayState.recentRecords
-    },
     todayReminders() {
       return this.displayState.todayReminders
     },
@@ -218,10 +185,7 @@ export default {
       return this.currentBaby && this.currentBaby.initial ? this.currentBaby.initial : '宝'
     },
     timelineEventCountText() {
-      return this.timelineEvents.length ? `${this.timelineEvents.length}个事件` : '今天还没有事件'
-    },
-    noRecentRecords() {
-      return this.recentRecords.length === 0
+      return this.timelineEvents.length ? `${this.timelineEvents.length}条` : '暂无护理事实'
     },
     noTimelineEvents() {
       return this.timelineEvents.length === 0
@@ -246,21 +210,8 @@ export default {
         className: index === activeIndex ? 'pending-indicator-dot active' : 'pending-indicator-dot'
       }))
     },
-    summaryItems() {
-      return [
-        this.buildSummaryItem('FEEDING', '喂奶', '奶', 'feeding'),
-        this.buildSummaryItem('SLEEP', '睡眠', '眠', 'sleep'),
-        this.buildSummaryItem('DIAPER', '大便', '便', 'diaper'),
-        this.buildSummaryItem('BASIC_CARE', '小便', '尿', 'pee')
-      ]
-    },
     quickActions() {
-      return [
-        { label: '记录喂奶', iconText: '奶', typeClass: 'feeding' },
-        { label: '记录睡眠', iconText: '眠', typeClass: 'sleep' },
-        { label: '记录护理', iconText: '护', typeClass: 'diaper' },
-        { label: '记录互动', iconText: '记', typeClass: 'note' }
-      ]
+      return buildQuickActionMetas()
     }
   },
   onShow() {
@@ -325,7 +276,6 @@ export default {
       }
 
       const results = await Promise.all([
-        this.refreshTodaySummary(baby.babyId),
         this.refreshTodayReminders(baby.babyId),
         this.refreshTodayTimeline(baby.babyId)
       ])
@@ -356,26 +306,6 @@ export default {
         return null
       } finally {
         this.refreshingState.currentBaby = false
-      }
-    },
-    async refreshTodaySummary(babyId) {
-      this.refreshingState.summary = true
-      try {
-        const summary = await fetchTodaySummary(babyId)
-        this.displayState = {
-          ...this.displayState,
-          todaySummary: summary,
-          recentRecords: summary.recentRecords
-        }
-        return true
-      } catch (error) {
-        if (isUnauthorizedError(error)) {
-          return false
-        }
-        this.handleRefreshFailure(error)
-        return false
-      } finally {
-        this.refreshingState.summary = false
       }
     },
     async refreshTodayTimeline(babyId) {
@@ -461,6 +391,21 @@ export default {
         draft
       }
     },
+    handleManualQuickRecord(item) {
+      const currentBabyId = this.currentBaby && this.currentBaby.babyId
+      const draft = buildManualQuickRecordDraft(currentBabyId, item)
+      if (!draft) {
+        uni.showToast({
+          title: '请先选择宝宝',
+          icon: 'none'
+        })
+        return
+      }
+      this.quickRecordSheet = {
+        visible: true,
+        draft
+      }
+    },
     closeQuickRecordSheet() {
       this.quickRecordSheet = {
         visible: false,
@@ -512,18 +457,6 @@ export default {
         duration: 1500
       })
     },
-    getTypeCount(recordType) {
-      return getRecordTypeCountText(this.todaySummary && this.todaySummary.typeCountMap, recordType)
-    },
-    buildSummaryItem(recordType, label, iconText, typeClass) {
-      return {
-        recordType,
-        label,
-        iconText,
-        typeClass,
-        countText: this.getTypeCount(recordType)
-      }
-    },
     goBabyList() {
       uni.switchTab({
         url: '/pages/baby/index'
@@ -556,9 +489,12 @@ export default {
 }
 
 .soft-action {
-  color: #c96a16;
-  background: #fff5ec;
+  box-sizing: border-box;
+  border: 2rpx solid #d96f1f;
   border-radius: 999rpx;
+  background: #ffffff;
+  color: #9f4e12;
+  font-weight: 750;
 }
 
 .today-hero {
@@ -635,14 +571,14 @@ export default {
   min-width: 0;
   height: 56rpx;
   border-radius: 999rpx;
-  border: 1rpx solid #f3d8bf;
-  background: rgba(255, 255, 255, 0.78);
-  color: #c96a16;
+  border: 2rpx solid #d96f1f;
+  background: #ffffff;
+  color: #9f4e12;
   font-size: 22rpx;
+  font-weight: 750;
   line-height: 56rpx;
 }
 
-.summary-card,
 .section-card {
   margin-bottom: 22rpx;
   padding: 28rpx 24rpx;
@@ -672,24 +608,6 @@ export default {
   color: #f28c38;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12rpx;
-  margin-top: 22rpx;
-}
-
-.summary-item {
-  min-height: 150rpx;
-  box-sizing: border-box;
-  padding: 18rpx 6rpx 16rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #f8f9fb;
-  text-align: center;
-}
-
-.summary-icon,
 .quick-icon {
   display: flex;
   align-items: center;
@@ -697,26 +615,6 @@ export default {
   margin: 0 auto 8rpx;
   border-radius: 50%;
   font-weight: 600;
-}
-
-.summary-icon {
-  width: 52rpx;
-  height: 52rpx;
-  font-size: 24rpx;
-}
-
-.summary-label {
-  color: #1f2329;
-  font-size: 23rpx;
-  font-weight: 700;
-}
-
-.summary-value {
-  margin-top: 10rpx;
-  color: #c96a16;
-  font-size: 21rpx;
-  font-weight: 700;
-  line-height: 1.25;
 }
 
 .feeding {
@@ -729,13 +627,15 @@ export default {
   color: #8d6bd1;
 }
 
-.diaper {
+.diaper,
+.care {
   background: #e8f7ec;
   color: #62a66d;
 }
 
 .pee,
-.note {
+.note,
+.play {
   background: #edf3ff;
   color: #6a8ccf;
 }
@@ -758,36 +658,6 @@ export default {
 .system-event {
   background: #eef0f3;
   color: transparent;
-}
-
-.voice-empty {
-  display: flex;
-  align-items: center;
-  margin-top: 20rpx;
-  padding: 20rpx;
-  border: 1rpx solid #eceff3;
-  border-radius: 18rpx;
-  background: #f8f9fb;
-}
-
-.voice-empty > view:last-child {
-  flex: 1;
-  min-width: 0;
-}
-
-.voice-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 76rpx;
-  height: 76rpx;
-  margin-right: 18rpx;
-  border-radius: 50%;
-  background: #fff5ec;
-  color: #f28c38;
-  font-size: 26rpx;
-  font-weight: 600;
 }
 
 .empty-title {
@@ -875,169 +745,11 @@ export default {
   position: absolute;
   top: 34rpx;
   bottom: 34rpx;
-  left: 124rpx;
+  left: 115rpx;
   width: 2rpx;
   border-radius: 999rpx;
   background: #e5e8ed;
   content: '';
-}
-
-.timeline-item {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  padding: 18rpx 0;
-}
-
-.timeline-item-record {
-  padding: 20rpx 0;
-}
-
-.timeline-item-plan-completed {
-  padding: 15rpx 0;
-}
-
-.timeline-item-plan-delayed {
-  padding: 14rpx 0;
-}
-
-.timeline-item-system {
-  padding: 10rpx 0;
-}
-
-.timeline-time {
-  flex-shrink: 0;
-  width: 96rpx;
-  padding-top: 10rpx;
-  color: #69707a;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.timeline-node {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-  width: 62rpx;
-}
-
-.timeline-dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 50rpx;
-  height: 50rpx;
-  margin: 0 auto;
-  border: 6rpx solid #ffffff;
-  border-radius: 50%;
-  font-size: 20rpx;
-  font-weight: 700;
-  box-shadow: 0 4rpx 12rpx rgba(31, 35, 41, 0.08);
-}
-
-.timeline-item-record .timeline-time {
-  color: #4f5d68;
-  font-size: 23rpx;
-  font-weight: 700;
-}
-
-.timeline-item-record .timeline-dot {
-  width: 56rpx;
-  height: 56rpx;
-  font-size: 21rpx;
-  box-shadow: 0 6rpx 16rpx rgba(31, 35, 41, 0.1);
-}
-
-.timeline-item-plan-completed .timeline-time,
-.timeline-item-plan-delayed .timeline-time {
-  padding-top: 8rpx;
-  color: #8b929b;
-  font-size: 21rpx;
-  font-weight: 500;
-}
-
-.timeline-item-plan-completed .timeline-dot,
-.timeline-item-plan-delayed .timeline-dot {
-  width: 44rpx;
-  height: 44rpx;
-  border-width: 5rpx;
-  font-size: 17rpx;
-  box-shadow: none;
-}
-
-.timeline-item-system .timeline-time {
-  padding-top: 2rpx;
-  color: #b0b6bd;
-  font-size: 20rpx;
-  font-weight: 500;
-}
-
-.timeline-item-system .timeline-dot {
-  width: 26rpx;
-  height: 26rpx;
-  margin-top: 4rpx;
-  border-width: 5rpx;
-  font-size: 0;
-  box-shadow: none;
-}
-
-.timeline-main {
-  flex: 1;
-  min-width: 0;
-  padding: 4rpx 0 0 10rpx;
-}
-
-.timeline-title {
-  color: #1f2329;
-  font-size: 26rpx;
-  font-weight: 700;
-}
-
-.timeline-item-record .timeline-title {
-  font-size: 27rpx;
-  font-weight: 700;
-}
-
-.timeline-item-plan-completed .timeline-title {
-  color: #4f5d68;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.timeline-item-plan-delayed .timeline-title {
-  color: #6f6a62;
-  font-size: 23rpx;
-  font-weight: 500;
-}
-
-.timeline-item-system .timeline-main {
-  padding-top: 0;
-}
-
-.timeline-item-system .timeline-title {
-  color: #8b929b;
-  font-size: 21rpx;
-  font-weight: 500;
-}
-
-.timeline-remark {
-  margin-top: 6rpx;
-  color: #69707a;
-  font-size: 22rpx;
-  line-height: 1.5;
-}
-
-.timeline-item-record .timeline-remark {
-  color: #4f5d68;
-  font-size: 23rpx;
-}
-
-.timeline-item-plan-completed .timeline-remark,
-.timeline-item-plan-delayed .timeline-remark {
-  margin-top: 4rpx;
-  color: #8b929b;
-  font-size: 21rpx;
-  line-height: 1.45;
 }
 
 .quick-list {

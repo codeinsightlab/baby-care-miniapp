@@ -28,7 +28,7 @@
         <switch :checked="isPlanEnabled(node.enabled)" color="#f28c38" @change="handleGroupToggle('diaperNodes', index, $event)" />
         <view class="delete-action" @click="removeNode('diaperNodes', index)">删</view>
       </view>
-      <view class="add-node" @click="addDiaperNode">+ 新建节点</view>
+        <view class="add-node" @click="addDiaperNode">+ 新建时间</view>
     </view>
 
     <view class="section-card">
@@ -109,10 +109,10 @@ export default {
           careItemLabel: '体温观察',
           temperatureMode: 'RECORD_ONLY'
         },
-        remark: '基础护理体温观察节点'
+        remark: '基础护理体温观察时间'
       },
       diaperModes: [
-        { value: 'FOLLOW_TEMPLATE', label: '跟随推荐节点生成' },
+        { value: 'FOLLOW_TEMPLATE', label: '跟随当前设置生成' },
         { value: 'SINGLE', label: '单独设置提醒' },
         { value: 'RECORD_ONLY', label: '暂不提醒，仅记录' }
       ],
@@ -198,7 +198,7 @@ export default {
         reminderTime: time,
         enabled: this.diaperMode === 'RECORD_ONLY' ? PLAN_ENABLED_STATUS.DISABLED : PLAN_ENABLED_STATUS.ENABLED,
         context: this.buildDiaperContext(),
-        remark: '基础护理换尿布节点'
+        remark: '基础护理换尿布时间'
       }
     },
     buildSupplementNode(name, repeatLabel, time, index) {
@@ -215,7 +215,7 @@ export default {
           supplementName: name,
           repeatRuleLabel: repeatLabel
         },
-        remark: '基础护理补剂节点'
+        remark: '基础护理补剂时间'
       }
     },
     buildTemperatureNode() {
@@ -231,7 +231,7 @@ export default {
           careItemLabel: '体温观察',
           temperatureMode: 'RECORD_ONLY'
         },
-        remark: '基础护理体温观察节点'
+        remark: '基础护理体温观察时间'
       }
     },
     buildDiaperContext() {
@@ -518,19 +518,20 @@ export default {
   margin-left: 0;
   margin-right: 0;
   height: 84rpx;
+  border: 2rpx solid #d96f1f;
   border-radius: 999rpx;
   font-size: 27rpx;
+  font-weight: 800;
   line-height: 84rpx;
 }
 
 .primary-action {
-  background: #f28c38;
+  background: #e8792a;
   color: #ffffff;
 }
 
 .soft-action {
-  border: 1rpx solid #f3d8bf;
-  background: #fff5ec;
-  color: #c96a16;
+  background: #ffffff;
+  color: #9f4e12;
 }
 </style>
